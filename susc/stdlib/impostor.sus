@@ -1,0 +1,22 @@
+@> Represents connection states <@
+enum(1) State {
+    normal(255)
+}
+
+@> Represents operation error codes <@
+enum(2) ErrorCode {
+    @> Global method got invoked in an unsupported connection state <@
+    invalid_state(65535),
+    @> Field value validation failed <@
+    validation_failed(65534),
+    @> Rate limit got exceeded <@
+    rate_limit(65533),
+    @> Confirmation check failed <@
+    confirmation_failed(65532),
+    @> EntityGet failed (invalid ID) <@
+    invalid_id(65531),
+    @> EntityGet failed (failed to apply modifiers) <@
+    invalid_get_modifier(65530),
+    @> EntityUpdate failed <@
+    invalid_entity(65529)
+}

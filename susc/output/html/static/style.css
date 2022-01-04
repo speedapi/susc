@@ -1,0 +1,121 @@
+@font-face {
+    font-family: Montserrat;
+    src: url(Montserrat-VF.woff2);
+    font-display: swap;
+}
+
+body {
+    background: #0f0f0f;
+    color: white;
+    margin: 0;
+    font-family: 'Roboto', 'Noto Sans', sans-serif;
+    font-size: 12pt;
+}
+body > *:not(#topbar) {
+    margin: 10px 25px;
+}
+code {
+    font-family: monospace;
+    font-size: 11pt;
+    padding: 0.2em 0.5em;
+    background: #202020;
+    border-radius: 0.3em;
+}
+
+h1, h2 {
+    font-family: Montserrat, 'Roboto', 'Noto Sans', sans-serif;
+}
+h1, h2, h3, h4, h5, h6 {
+    margin: 10px 0 2px 0;
+}
+
+a {
+    color: white;
+}
+a:visited {
+    color: white;
+}
+a:active {
+    color: white;
+}
+
+#topbar {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #202020;
+    padding: 8px;
+}
+#topbar a {
+    font-family: Montserrat;
+    font-size: 20pt;
+    font-weight: 800;
+    margin-left: 10px;
+    text-decoration: none;
+}
+#topbar a code {
+    font-size: 14pt;
+}
+#topbar a span {
+    font-family: 'Roboto', 'Noto Sans', sans-serif;
+    font-style: normal;
+    font-size: 15pt;
+    font-weight: 500;
+    margin-left: 20px;
+}
+
+.index-section {
+    padding-left: 16px;
+    margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+}
+.index-section h1 {
+    font-family: Montserrat;
+    font-size: 17pt;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+.index-section li {
+    font-family: monospace;
+    font-size: 11pt;
+    margin-left: 20px;
+}
+.index-section span {
+    margin-left: 7px;
+    font-family: 'Roboto', 'Noto Sans', sans-serif;
+    color: #ddd;
+}
+
+.docstring, .thing-member, .thing-param {
+    margin: 5px 5px;
+    padding: 5px 15px;
+    border-radius: 5px;
+}
+.docstring {
+    border-left: 3px solid #303030;
+    background: #181818;
+    width: fit-content;
+}
+.docstring p {
+    margin: 5px 0;
+}
+
+.thing-param {
+    padding: 5px 5px 5px 20px;
+}
+.thing-member {
+    padding: 5px 5px 5px 20px;
+}
+
+code.field {
+    background: #603030;
+}
+code.param {
+    background: #305030;
+}
+code.ret-val {
+    background: #605030;
+}
+code.method {
+    background: #303050;
+}

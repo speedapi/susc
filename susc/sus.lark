@@ -1,0 +1,79 @@
+// AMOGUS SUS description language
+
+_sep{x, s}: [x (s x)*]
+
+start : thing*
+?thing : inclusion | setting
+         | enum | bitfield | confirmation
+         | global_method | entity
+
+inclusion : "include" PATH
+PATH      : /[\w.:\/\\][\w.:\/\\ ]*/
+
+setting   : "set" PARAMETER VALUE
+PARAMETER : /[a-z](_|[a-z])+/
+VALUE     : /.+/
+
+enum          : [DOCSTRING] "enum" "(" NUMBER ")" TYPE_IDENTIFIER "{" _sep{enum_member, ","} "}"
+bitfield      : [DOCSTRING] "bitfield" "(" NUMBER ")" TYPE_IDENTIFIER "{" _sep{enum_member, ","} "}"
+confirmation  : [DOCSTRING] "confirmation" TYPE_IDENTIFIER "(" NUMBER ")" "{" conf_request conf_response "}"
+conf_request  : "request" "{" method_param* "}"
+conf_response : "response" "{" method_param* "}"
+egm_field     : FIELD_IDENTIFIER ":" type
+
+ROOT_IDENTIFIER      : /[A-Z][A-Za-z]*/
+FIELD_IDENTIFIER     : /[a-z][a-z_]*/
+PARAM_IDENTIFIER     : /[a-z][a-z_]*/
+METHOD_IDENTIFIER    : /[a-z][a-z_]*/
+MAGIC_IDENTIFIER     : "!" TYPE_IDENTIFIER
+enum_member          : [DOCSTRING] FIELD_IDENTIFIER "(" NUMBER ")"
+VALIDATOR_IDENTIFIER : /[a-z][a-z_]+/
+TYPE_IDENTIFIER      : /[A-Z][A-Za-z]+/
+
+value         : SIGNED_NUMBER | BOOL | STRING | list
+NUMBER        : /[0-9]+/
+SIGNED_NUMBER : /-?[0-9]+/
+REGEX         : /\/.+\/i?m?s?/
+BOOL          : "false" | "true"
+STRING        : /".*"/
+list          : "[" _sep{value, ","} "]"
+
+DOCSTRING : /@>(((?<!<)@)|((?<! )<)|[^<@])+<@/ // yep!
+
+range   : SIGNED_NUMBER ".." SIGNED_NUMBER | SIGNED_NUMBER "+"
+TIMEOUT : NUMBER ("ms" | "s" | "m" | "h" | "d" | "mo" | "y")
+
+
+type            : TYPE_IDENTIFIER ["(" _sep{type_argument, ","} ")"] ["[" _sep{type_validator, ","}*"]"]
+                  | "compound" "{" (FIELD_IDENTIFIER ":" type ";")* "}" -> compound
+                  | MAGIC_IDENTIFIER
+type_argument   : type | NUMBER
+type_validator  : VALIDATOR_IDENTIFIER ":" validator_value
+validator_value : SIGNED_NUMBER | range | REGEX
+
+
+entity            : [DOCSTRING] "entity" ROOT_IDENTIFIER "(" NUMBER ")" "{" entity_directive* "}"
+?entity_directive : static_method | normal_method | entity_field
+entity_field      : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] [field_caching] type ";"
+?field_opt        : "opt" "(" NUMBER ")"
+field_caching     : "cache" "(" CACHING_SEL TIMEOUT ")"
+CACHING_SEL       : "hard" | "soft"
+
+
+static_method     : [DOCSTRING] "staticmethod" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
+normal_method     : [DOCSTRING] "method" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
+global_method     : [DOCSTRING] "globalmethod" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
+?method_directive : method_param | returns | errors | states | confirmations | rate_limit
+method_param      : [DOCSTRING] PARAM_IDENTIFIER ":" [field_opt] type ["=" value] ";"
+returns           : "returns" "{" method_param* "}"
+errors            : "errors" "{" _sep{FIELD_IDENTIFIER, ","} "}"
+states            : "states" "{" _sep{FIELD_IDENTIFIER, ","} "}"
+confirmations     : "confirmations" "{" _sep{ROOT_IDENTIFIER, ","} "}"
+rate_limit        : "ratelimit" NUMBER "every" TIMEOUT ";"
+
+
+COMMENT: /#.*$/m
+%ignore COMMENT
+
+%import common.WS
+%ignore WS
