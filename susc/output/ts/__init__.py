@@ -58,7 +58,7 @@ def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
         }[obj_types[type_.name]]
         return f"new amogus.repr.{t_name}({obj_types[type_.name]}.{type_.name})"
 
-    return f"new amogus.repr.{type_.name}({', '.join(type_.args + [''])}{type_validators(type_)})"
+    return f"new amogus.repr.{type_.name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
 
 def write_output(root_file: SusFile, target_dir: str) -> None:
     proj_name = path.splitext(path.basename(root_file.path))[0]

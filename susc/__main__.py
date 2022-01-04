@@ -15,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("source", help="file to compile", type=argparse.FileType(mode="r", encoding="utf8"))
     parser.add_argument("-o", "--output", help="override the output dir")
+    parser.add_argument("-l", "--lang", help="override the `set output` directive")
     parser.add_argument("-v", "--verbose", help="verbose logging", action="store_true")
     parser.add_argument("-p", "--highlight", help="print the contents of a SUS file with highlighting", action="store_true")
     args = parser.parse_args()
@@ -23,7 +24,7 @@ def main():
     if log.VERBOSE:
         log.verbose("Verbose mode enabled")
     # default value
-    if args.output == None:
+    if not args.output:
         args.output = path.join(path.dirname(args.source.name), path.splitext(path.basename(args.source.name))[0] + "_output")
 
     if args.highlight:
@@ -37,11 +38,12 @@ def main():
         log.error(str(ex))
         return
     
-    if "output" not in sus_file.settings:
-        log.warn(f"No output languages specified. Use the {Fore.GREEN}'set output <language list>'{Fore.WHITE} directive")
+    langs = args.lang or sus_file.settings.get("output", None)
+    if not langs:
+        log.warn(f"No output languages specified. Use the {Fore.GREEN}'set output <language list>'{Fore.WHITE} directive in the root file or pass {Fore.GREEN}'-l <language list>'{Fore.WHITE} to the compiler")
         return
 
-    langs = sus_file.settings["output"].split()
+    langs = langs.split()
     for lang in langs:
         try:
             sus_file.write_output(lang, path.join(args.output, lang))

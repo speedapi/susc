@@ -131,7 +131,7 @@ def format_docstring(docstr, indentation=2):
     docstr = docstr.replace("\n", "\n\n")
     return indent(f"<div class='docstring'>\n{markdown(docstr)}\n</div>\n", "\t" * indentation)
 def format_type(type_: SusType):
-    args = type_.args
+    args = type_.args[:]
     for i, arg in enumerate(args):
         if isinstance(arg, int):
             args[i] = str(arg)
