@@ -2,6 +2,8 @@ import argparse
 import susc, sys
 from os import path
 from colorama import Fore
+
+from susc import exceptions
 from . import log
 from time import time
 from .watch import gen_ts
@@ -20,8 +22,10 @@ def main():
     parser.add_argument("-v", "--verbose", help="verbose logging", action="store_true")
     parser.add_argument("-p", "--highlight", help="print contents of a SUS file with highlighting", action="store_true")
     parser.add_argument("-t", "--gen-ts", help="watch source files and generate .d.ts files in background", action="store_true")
+    parser.add_argument("-s", "--single-line-errors", help="output errors in a parsable format", action="store_true")
     args = parser.parse_args()
 
+    exceptions.SINGLE_LINE_ERRORS = args.single_line_errors
     log.VERBOSE = args.verbose
     if log.VERBOSE:
         log.verbose("Verbose mode enabled")

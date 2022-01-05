@@ -52,10 +52,12 @@ def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
     if type_.name in obj_types:
         t_name = {
             "entities": "SpecificEntity",
-            "bitfields": "Bitfield",
-            "enums": "Enum",
+            "bitfields": "EnumOrBf",
+            "enums": "EnumOrBf",
             "confirmations": "Confirmation"
         }[obj_types[type_.name]]
+        if t_name == "EnumOrBf":
+            return f"new amogus.repr.EnumOrBf<{type_.name}>({type_.name}_SIZE)"
         return f"new amogus.repr.{t_name}({type_.name})"
 
     return f"new amogus.repr.{type_.name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
@@ -67,7 +69,6 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
     "" + LICENSE + "\n */\n\n")
 
     # display lib notice
-    lib_path = path.abspath(path.join(dirname(__file__), "amogus"))
     # log.info(f"TypeScript: Install the {Fore.GREEN}'amogus-driver'{Fore.WHITE} library from npm to make use of this output")
 
     # construct a name-to-type mapping
@@ -82,7 +83,19 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write(header)
         f.write("import * as amogus from \"amogus-driver\";\n\n")
 
-        # write methods
+        # write enums
+        enums_and_bfs = [t for t in root_file.things if isinstance(t, (SusEnum, SusBitfield))]
+        for thing in enums_and_bfs:
+            write_docstr(f, thing)
+            f.write(f"enum {thing.name} {'{'}\n")
+            for member in thing.members:
+                write_docstr(f, member, 1)
+                prefix = "" if isinstance(thing, SusEnum) else "1 << "
+                f.write(f"\t{member.name} = {prefix}{member.value},\n")
+            f.write("}\n")
+            f.write(f"const {thing.name}_SIZE = {thing.size};\n\n\n")
+
+        # write global methods
         methods = [t for t in root_file.things if isinstance(t, SusMethod)]
         for method in methods:
             # write spec
@@ -99,25 +112,47 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("};\n")
             # write class
             write_docstr(f, method)
-            f.write(f"export class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
+            f.write(f"class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
             f.write("\tconstructor() {\n")
             f.write(f"\t\tsuper({name}Spec, {method.value}, undefined);\n")
             f.write("\t}\n")
             f.write("}\n")
             # write function
-            f.write(f"export async function {snake_to_camel(method.name)}(\n")
-            f.write("\tsession: amogus.session.Session,\n")
+            write_docstr(f, method)
+            f.write(f"async function {snake_to_camel(method.name)}(\n")
+            f.write("\tthis: any | amogus.session.BoundSession,\n")
             f.write(f"\tparams: amogus.FieldValue<typeof {name}Spec[\"params\"]>,\n")
-            f.write(f"\tconfirm?: amogus.session.ConfCallback<{name}>\n")
+            f.write(f"\tconfirm?: amogus.session.ConfCallback<{name}>,\n")
+            f.write("\tsession?: amogus.session.Session\n")
             f.write(f"): Promise<amogus.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
             f.write(f"\tconst method = new {name}();\n")
             f.write(f"\tmethod.params = params;\n")
-            f.write(f"\treturn await session.invokeMethod(method, confirm);\n")
+            f.write(f"\treturn await (session ?? this.session).invokeMethod(method, confirm);\n")
             f.write("}\n\n\n")
 
         # write entities
         entities = [t for t in root_file.things if isinstance(t, SusEntity)]
         for entity in entities:
+            # write method specs and classes
+            for method in entity.methods:
+                name = f"{entity.name}_{snake_to_pascal(method.name)}"
+                f.write(f"const {name}Spec = {'{'}\n")
+                f.write("\tparams: {\n")
+                write_field_array(f, method.parameters, objs)
+                f.write("\t},\n")
+                f.write("\treturns: {\n")
+                write_field_array(f, method.returns, objs)
+                f.write("\t},\n")
+                confirmations = ", ".join(snake_to_pascal(conf) for conf in method.confirmations)
+                f.write(f"\tconfirmations: [{confirmations}]\n")
+                f.write("};\n")
+                write_docstr(f, method)
+                f.write(f"class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
+                f.write("\tconstructor() {\n")
+                f.write(f"\t\tsuper({name}Spec, {method.value + (128 if method.static else 0)}, {entity.value});\n")
+                f.write("\t}\n")
+                f.write("}\n")
+
             # write spec
             name = entity.name
             f.write(f"const {name}Spec = {'{'}\n")
@@ -125,18 +160,39 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             write_field_array(f, entity.fields, objs)
             f.write("\t},\n")
             f.write("\tmethods: {\n")
-            # write_field_array(f, entity.fields, objs)
+            for method in entity.methods:
+                val = method.value + (128 if method.static else 0)
+                f.write(f"\t\t{val}: new {entity.name}_{snake_to_pascal(method.name)}(),\n")
             f.write("\t}\n")
             f.write("};\n")
             # write class
-            f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
-            f.write("\tconstructor() {\n")
+            write_docstr(f, entity)
+            f.write(f"class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
+            f.write("\tsession?: amogus.session.Session;\n")
+            f.write("\tconstructor(session?: amogus.session.Session) {\n")
             f.write(f"\t\tsuper({name}Spec, {entity.value});\n")
+            f.write("\t\tthis.session = session;\n")
             f.write("\t}\n")
+
+            # write method functions
+            for method in entity.methods:
+                name = f"{entity.name}_{snake_to_pascal(method.name)}"
+                write_docstr(f, entity, 1)
+                static = "static " if method.static else ""
+                f.write(f"\n\t{static}async {snake_to_camel(method.name)}(\n")
+                f.write(f"\t\tparams: amogus.FieldValue<typeof {name}Spec[\"params\"]>,\n")
+                f.write(f"\t\tconfirm?: amogus.session.ConfCallback<{name}>,\n")
+                f.write("\t\tsession?: amogus.session.Session\n")
+                f.write(f"\t): Promise<amogus.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
+                f.write(f"\t\tconst method = new {name}();\n")
+                f.write(f"\t\tmethod.params = params;\n")
+                f.write(f"\t\treturn await (session ?? this.session).invokeMethod(method, confirm);\n")
+                f.write("\t}\n")
             f.write("}\n\n\n")
 
         # write spec space
         f.write("\nexport const specSpace = {\n")
+        f.write("\tspecVersion: 1,\n")
         f.write("\tglobalMethods: {\n")
         for method in methods:
             f.write(f"\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
@@ -152,11 +208,21 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         # write bind()
         f.write("\nexport function bind(session: amogus.session.Session) {\n")
         f.write("\treturn {\n")
+        f.write("\t\tsession,\n")
+        f.write("\t\t/*** METHODS ***/\n\n")
         for method in methods:
-            f.write(f"\t\t{snake_to_camel(method.name)}: (\n")
-            f.write(f"\t\t\tparams: amogus.FieldValue<typeof {snake_to_pascal(method.name)}Spec[\"params\"]>,\n")
-            f.write(f"\t\t\tconfirm?: amogus.session.ConfCallback<{snake_to_pascal(method.name)}>,\n")
-            f.write(f"\t\t) => {snake_to_camel(method.name)}(session, params, confirm),\n")
+            write_docstr(f, method, 2)
+            f.write(f"\t\t{snake_to_camel(method.name)},\n")
+        f.write("\n\t\t/*** ENTITIES ***/\n\n")
+        for entity in entities:
+            write_docstr(f, entity, 2)
+            f.write(f"\t\t\"{entity.name}\": class extends {entity.name} {'{'}\n")
+            f.write("\t\t\tconstructor() { super(session); }\n")
+            f.write("\t\t},\n")
+        f.write("\n\t\t/*** ENUMS AND BITFIELDS ***/\n\n")
+        for thing in enums_and_bfs:
+            write_docstr(f, thing, 2)
+            f.write(f"\t\t{thing.name},\n")
         f.write("\t};\n")
         f.write("}\n")
 

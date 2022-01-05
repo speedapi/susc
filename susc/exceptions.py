@@ -17,6 +17,7 @@ class SusLocation():
 class SusError(Exception):
     pass
 
+SINGLE_LINE_ERRORS = False
 class SusSourceError(SusError):
     def __init__(self, locations, text):
         self.locations = locations
@@ -34,6 +35,11 @@ class SusSourceError(SusError):
         log.info(str(self))
 
     def __str__(self):
+        if SINGLE_LINE_ERRORS:
+            location = self.locations[0]
+            location = f"{location.file.path}:{location.line}:{location.col}"
+            return f"{location}: {self.text}"
+
         error = Fore.WHITE + ("" if len(self.locations) in [0, 1] else "multiple locations: ")
 
         for loc in self.locations:

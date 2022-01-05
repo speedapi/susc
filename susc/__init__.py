@@ -251,12 +251,20 @@ class SusFile():
                     if id_field.type_.name != "Int" or id_field.type_.args[0] != 8:
                         SusSourceError([id_field.location], f"The 'id' field is not an Int(8)").print_warn()
 
-            method_sets = [e.methods for e in entities] + [[t for t in all_things if isinstance(t, SusMethod)]]
+            method_sets = [[t for t in all_things if isinstance(t, SusMethod)]]
+            method_sets += [[m for m in e.methods if m.static] for e in entities]
+            method_sets += [[m for m in e.methods if not m.static] for e in entities]
             for m_set in method_sets:
                 for method in m_set:
                     matching = [t for t in m_set if t.value == method.value]
                     if len(matching) != 1:
                         raise SusSourceError([t.location for t in matching], f"Multiple methods with matching values '{thing.value}'")
+
+        # strip docstrings
+        log.verbose("Stripping docstrings")
+        for thing in out_things:
+            doc = thing.docstring
+            thing.docstring = doc.strip() if doc else None
 
         self.things = out_things
         return out_things
