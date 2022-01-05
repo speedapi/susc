@@ -4,6 +4,7 @@ from os import path
 from colorama import Fore
 from . import log
 from time import time
+from .watch import gen_ts
 
 def highlight(file):
     for line in file.readlines():
@@ -14,10 +15,11 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("source", help="file to compile", type=argparse.FileType(mode="r", encoding="utf8"))
-    parser.add_argument("-o", "--output", help="override the output dir")
-    parser.add_argument("-l", "--lang", help="override the `set output` directive")
+    parser.add_argument("-o", "--output", help="override output dir")
+    parser.add_argument("-l", "--lang", help="override `set output` directive")
     parser.add_argument("-v", "--verbose", help="verbose logging", action="store_true")
-    parser.add_argument("-p", "--highlight", help="print the contents of a SUS file with highlighting", action="store_true")
+    parser.add_argument("-p", "--highlight", help="print contents of a SUS file with highlighting", action="store_true")
+    parser.add_argument("-t", "--gen-ts", help="watch source files and generate .d.ts files in background", action="store_true")
     args = parser.parse_args()
 
     log.VERBOSE = args.verbose
@@ -29,6 +31,10 @@ def main():
 
     if args.highlight:
         highlight(args.source)
+        return
+
+    if args.gen_ts:
+        gen_ts(args.source)
         return
     
     sus_file = susc.SusFile(args.source)

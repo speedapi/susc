@@ -3,7 +3,7 @@ from textwrap import indent
 from typing import *
 from susc import SusFile
 from susc.things import *
-from os import makedirs, path
+from os import makedirs, path, write
 from susc import log
 from colorama import Fore
 
@@ -21,7 +21,7 @@ LICENSE = """ * Permission is hereby granted, free of charge, to any person obta
 
 def snake_to_pascal(name: str) -> str:
     words = name.split("_")
-    return "".join([w[0].upper() + w[1:] for w in words])
+    return "".join(w[0].upper() + w[1:] for w in words)
 def snake_to_camel(name: str) -> str:
     pascal = snake_to_pascal(name)
     return pascal[0].lower() + pascal[1:]
@@ -56,7 +56,7 @@ def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
             "enums": "Enum",
             "confirmations": "Confirmation"
         }[obj_types[type_.name]]
-        return f"new amogus.repr.{t_name}({obj_types[type_.name]}.{type_.name})"
+        return f"new amogus.repr.{t_name}({type_.name})"
 
     return f"new amogus.repr.{type_.name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
 
@@ -68,7 +68,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
 
     # display lib notice
     lib_path = path.abspath(path.join(dirname(__file__), "amogus"))
-    log.info(f"TypeScript: Install the {Fore.GREEN}'amogus-driver'{Fore.WHITE} library from npm to make use of this output")
+    # log.info(f"TypeScript: Install the {Fore.GREEN}'amogus-driver'{Fore.WHITE} library from npm to make use of this output")
 
     # construct a name-to-type mapping
     objs = {}
@@ -78,16 +78,12 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             name = "entities"
         objs[thing.name] = name
 
-    # write methods
-    log.verbose("Writing methods.ts")
-    methods = [t for t in root_file.things if isinstance(t, SusMethod)]
-    with open(path.join(target_dir, "methods.ts"), "w") as f:
+    with open(path.join(target_dir, "index.ts"), "w") as f:
         f.write(header)
-        f.write("import * as amogus from \"amogus\";\n")
-        f.write("import * as enums from \"./enums\";\n")
-        f.write("import * as bitfields from \"./bitfields\";\n")
-        f.write("import * as confirmations from \"./confirmations\";\n")
-        f.write("import * as entities from \"./entities\";\n\n")
+        f.write("import * as amogus from \"amogus-driver\";\n\n")
+
+        # write methods
+        methods = [t for t in root_file.things if isinstance(t, SusMethod)]
         for method in methods:
             # write spec
             name = snake_to_pascal(method.name)
@@ -98,10 +94,11 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("\treturns: {\n")
             write_field_array(f, method.returns, objs)
             f.write("\t},\n")
-            confirmations = ", ".join("confirmations." + snake_to_pascal(conf) for conf in method.confirmations)
+            confirmations = ", ".join(snake_to_pascal(conf) for conf in method.confirmations)
             f.write(f"\tconfirmations: [{confirmations}]\n")
             f.write("};\n")
             # write class
+            write_docstr(f, method)
             f.write(f"export class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
             f.write("\tconstructor() {\n")
             f.write(f"\t\tsuper({name}Spec, {method.value}, undefined);\n")
@@ -116,34 +113,80 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write(f"\tconst method = new {name}();\n")
             f.write(f"\tmethod.params = params;\n")
             f.write(f"\treturn await session.invokeMethod(method, confirm);\n")
-            f.write("}\n\n")
+            f.write("}\n\n\n")
 
-    # write index
-    log.verbose("Writing index.ts")
-    with open(path.join(target_dir, "index.ts"), "w") as f:
-        f.write(header)
-        f.write("import * as amogus from \"amogus\";\n")
-        f.write("import * as enums from \"./enums\";\n")
-        f.write("import * as bitfields from \"./bitfields\";\n")
-        f.write("import * as confirmations from \"./confirmations\";\n")
-        f.write("import * as entities from \"./entities\";\n")
-        f.write("import * as methods from \"./methods\";\n")
-        f.write("export { enums, bitfields, confirmations, entities, methods };\n\n")
+        # write entities
+        entities = [t for t in root_file.things if isinstance(t, SusEntity)]
+        for entity in entities:
+            # write spec
+            name = entity.name
+            f.write(f"const {name}Spec = {'{'}\n")
+            f.write("\tfields: {\n")
+            write_field_array(f, entity.fields, objs)
+            f.write("\t},\n")
+            f.write("\tmethods: {\n")
+            # write_field_array(f, entity.fields, objs)
+            f.write("\t}\n")
+            f.write("};\n")
+            # write class
+            f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
+            f.write("\tconstructor() {\n")
+            f.write(f"\t\tsuper({name}Spec, {entity.value});\n")
+            f.write("\t}\n")
+            f.write("}\n\n\n")
+
         # write spec space
-        f.write("export const specSpace = {\n")
+        f.write("\nexport const specSpace = {\n")
         f.write("\tglobalMethods: {\n")
         for method in methods:
-            f.write(f"\t\t{method.value}: methods.{snake_to_pascal(method.name)},\n")
+            f.write(f"\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
+        f.write("\t},\n")
+        f.write("\tentities: {\n")
+        for entity in entities:
+            f.write(f"\t\t{entity.value}: new {entity.name}(),\n")
+        f.write("\t},\n")
+        f.write("\tconfirmations: {\n")
         f.write("\t}\n")
-        f.write("};\n")
+        f.write("};\n\n\n")
+
+        # write bind()
+        f.write("\nexport function bind(session: amogus.session.Session) {\n")
+        f.write("\treturn {\n")
+        for method in methods:
+            f.write(f"\t\t{snake_to_camel(method.name)}: (\n")
+            f.write(f"\t\t\tparams: amogus.FieldValue<typeof {snake_to_pascal(method.name)}Spec[\"params\"]>,\n")
+            f.write(f"\t\t\tconfirm?: amogus.session.ConfCallback<{snake_to_pascal(method.name)}>,\n")
+            f.write(f"\t\t) => {snake_to_camel(method.name)}(session, params, confirm),\n")
+        f.write("\t};\n")
+        f.write("}\n")
+
 
 def write_field_array(f, fields, objs, indent=2):
     indent = "\t" * indent
+
     f.write(f"{indent}required: {'{'}\n")
-    for param in [f for f in fields if f.optional is None]:
-        f.write(f"{indent}\t{param.name}: {type_to_amogus(param.type_, objs)},\n")
+    for field in [f for f in fields if f.optional is None]:
+        write_docstr(f, field, len(indent) + 1)
+        f.write(f"{indent}\t{field.name}: {type_to_amogus(field.type_, objs)},\n")
     f.write(f"{indent}{'}'},\n")
+
     f.write(f"{indent}optional: {'{'}\n")
-    for param in [f for f in fields if f.optional is not None]:
-        f.write(f"{indent}\t{param.name}: {type_to_amogus(param.type_, objs)},\n")
+    for field in [f for f in fields if f.optional is not None]:
+        write_docstr(f, field, len(indent) + 1)
+        f.write(f"{indent}\t{field.name}: [{field.optional} {type_to_amogus(field.type_, objs)}],\n")
     f.write(f"{indent}{'}'},\n")
+
+
+def write_docstr(f, thing: SusThing, indent=0):
+    indent = "\t" * indent
+    if not thing.docstring:
+        return
+
+    if thing.docstring.count("\n") == 0:
+        f.write(f"{indent}// {thing.docstring}\n")
+        return
+
+    f.write(f"{indent}/*\n")
+    for line in thing.docstring.split("\n"):
+        f.write(f"{indent} * {line}\n")
+    f.write(f"{indent} */\n")
