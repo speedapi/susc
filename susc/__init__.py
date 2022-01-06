@@ -93,10 +93,11 @@ class SusFile():
                 self.things.append(thing)
                 # generate optional field select bitfields for entities
                 if isinstance(thing, SusEntity):
-                    opt_members = [SusEnumMember(f.location, f.name, f.optional) for f in thing.fields if f.optional != None]
+                    log.verbose(thing.fields)
+                    opt_members = [SusEnumMember(f.location, None, f.name, f.optional) for f in thing.fields if f.optional != None]
                     if len(opt_members) != 0:
                         max_value = max([m.value for m in opt_members])
-                        bitfield = SusBitfield(thing.location, thing.name + "FieldSelect", ceil((max_value + 1) / 8), opt_members)
+                        bitfield = SusBitfield(thing.location, None, thing.name + "FieldSelect", ceil((max_value + 1) / 8), opt_members)
                         self.things.append(bitfield)
                         log.verbose(f"Generated optional field select bitfield: {Fore.WHITE}{log.highlight_thing(bitfield)}")
                     else:
