@@ -1,10 +1,18 @@
+<p align="center"><img src="https://github.com/amogus-api/info/raw/master/logos/logo_color_on_white.png" height="128"/></p>
+
+![Sus level](https://img.shields.io/badge/sus%20level-150%25-red)
+![License](https://img.shields.io/github/license/amogus-api/susc)
+![Version](https://img.shields.io/pypi/v/susc)
+![Downloads](https://img.shields.io/pypi/dm/susc)
+![PRs and issues](https://img.shields.io/badge/PRs%20and%20issues-welcom-brightgreen)
+
 # SUS compiler
 This repository contains the compiler for the SUS description language. Install it with:
 ```
 pip3 install susc
 ```
 
-## Usage
+# Usage
 ```
 susc --help
 # OR
