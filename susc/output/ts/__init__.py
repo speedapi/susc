@@ -47,7 +47,8 @@ def type_validators(type_: SusType):
     return "{ " + ', '.join(vals) + " }"
 def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
     if type_.name == "List":
-        return f"new amogus.repr.List({type_to_amogus(type_.args[0])}, {type_.args[1]}, {type_validators(type_)})"
+        elements = type_to_amogus(type_.args[0], obj_types)
+        return f"new amogus.repr.List({elements}, {type_.args[1]}, {type_validators(type_)})"
 
     if type_.name in obj_types:
         t_name = {
@@ -177,7 +178,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             # write method functions
             for method in entity.methods:
                 name = f"{entity.name}_{snake_to_pascal(method.name)}"
-                write_docstr(f, entity, 1)
+                write_docstr(f, method, 1)
                 static = "static " if method.static else ""
                 f.write(f"\n\t{static}async {snake_to_camel(method.name)}(\n")
                 f.write(f"\t\tparams: amogus.FieldValue<typeof {name}Spec[\"params\"]>,\n")
@@ -239,7 +240,10 @@ def write_field_array(f, fields, objs, indent=2):
     f.write(f"{indent}optional: {'{'}\n")
     for field in [f for f in fields if f.optional is not None]:
         write_docstr(f, field, len(indent) + 1)
-        f.write(f"{indent}\t{field.name}: [{field.optional} {type_to_amogus(field.type_, objs)}],\n")
+        type_ = type_to_amogus(field.type_, objs)
+        repr_class = type_[:type_.find("(")]
+        repr_class = repr_class[4:] # remove "new "
+        f.write(f"{indent}\t{field.name}: [{field.optional}, {type_}] as [number, {repr_class}],\n")
     f.write(f"{indent}{'}'},\n")
 
 
