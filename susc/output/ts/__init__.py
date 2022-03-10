@@ -88,13 +88,34 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         enums_and_bfs = [t for t in root_file.things if isinstance(t, (SusEnum, SusBitfield))]
         for thing in enums_and_bfs:
             write_docstr(f, thing)
-            f.write(f"enum {thing.name} {'{'}\n")
+            f.write(f"export enum {thing.name} {'{'}\n")
             for member in thing.members:
                 write_docstr(f, member, 1)
                 prefix = "" if isinstance(thing, SusEnum) else "1 << "
                 f.write(f"\t{member.name} = {prefix}{member.value},\n")
             f.write("}\n")
-            f.write(f"const {thing.name}_SIZE = {thing.size};\n\n\n")
+            f.write(f"export const {thing.name}_SIZE = {thing.size};\n\n\n")
+
+        # write confirmation
+        confirmations = [t for t in root_file.things if isinstance(t, SusConfirmation)]
+        for conf in confirmations:
+            # write spec
+            name = snake_to_pascal(conf.name)
+            f.write(f"const {name}Spec = {'{'}\n")
+            f.write("\trequest: {\n")
+            write_field_array(f, conf.req_parameters, objs)
+            f.write("\t},\n")
+            f.write("\tresponse: {\n")
+            write_field_array(f, conf.resp_parameters, objs)
+            f.write("\t}\n")
+            f.write("};\n")
+            # write class
+            write_docstr(f, conf)
+            f.write(f"export class {name} extends amogus.Confirmation<typeof {name}Spec> {'{'}\n")
+            f.write("\tconstructor() {\n")
+            f.write(f"\t\tsuper({name}Spec, {conf.value});\n")
+            f.write("\t}\n")
+            f.write("}\n")
 
         # write global methods
         methods = [t for t in root_file.things if isinstance(t, SusMethod)]
@@ -108,12 +129,12 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("\treturns: {\n")
             write_field_array(f, method.returns, objs)
             f.write("\t},\n")
-            confirmations = ", ".join(snake_to_pascal(conf) for conf in method.confirmations)
-            f.write(f"\tconfirmations: [{confirmations}]\n")
+            conf_names = ", ".join(f"new {snake_to_pascal(conf)}()" for conf in method.confirmations)
+            f.write(f"\tconfirmations: [{conf_names}]\n")
             f.write("};\n")
             # write class
             write_docstr(f, method)
-            f.write(f"class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
+            f.write(f"export class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
             f.write("\tconstructor() {\n")
             f.write(f"\t\tsuper({name}Spec, {method.value}, undefined);\n")
             f.write("\t}\n")
@@ -144,8 +165,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 f.write("\treturns: {\n")
                 write_field_array(f, method.returns, objs)
                 f.write("\t},\n")
-                confirmations = ", ".join(snake_to_pascal(conf) for conf in method.confirmations)
-                f.write(f"\tconfirmations: [{confirmations}]\n")
+                conf_names = ", ".join(f"new {snake_to_pascal(conf)}()" for conf in method.confirmations)
+                f.write(f"\tconfirmations: [{conf_names}]\n")
                 f.write("};\n")
                 write_docstr(f, method)
                 f.write(f"class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
@@ -168,7 +189,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("};\n")
             # write class
             write_docstr(f, entity)
-            f.write(f"class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
+            f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
             f.write("\tsession?: amogus.session.Session;\n")
             f.write("\tconstructor(session?: amogus.session.Session) {\n")
             f.write(f"\t\tsuper({name}Spec, {entity.value});\n")
@@ -203,6 +224,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write(f"\t\t{entity.value}: new {entity.name}(),\n")
         f.write("\t},\n")
         f.write("\tconfirmations: {\n")
+        for confirmation in confirmations:
+            f.write(f"\t\t{confirmation.value}: new {confirmation.name}(),\n")
         f.write("\t}\n")
         f.write("};\n\n\n")
 
@@ -244,7 +267,7 @@ def write_field_array(f, fields, objs, indent=2):
         repr_class = type_[:type_.find("(")]
         repr_class = repr_class[4:] # remove "new "
         f.write(f"{indent}\t{field.name}: [{field.optional}, {type_}] as [number, {repr_class}],\n")
-    f.write(f"{indent}{'}'},\n")
+    f.write(f"{indent}{'}'}\n")
 
 
 def write_docstr(f, thing: SusThing, indent=0):
