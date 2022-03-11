@@ -35,6 +35,9 @@ def main():
     if args.gen_ts:
         gen_ts(args.source)
         return
+
+    if len(args.source) > 1 and args.output is not None:
+        log.warn(f"More than one project specified. {Fore.GREEN}'-o {args.output}'{Fore.WHITE} will be ignored")
     
     successful = 0
     global_start = time()
@@ -58,11 +61,11 @@ def main():
         langs = langs.split()
         for lang in langs:
             output = args.output
-            if len(args.source) == 1 or output is None:
-                args.output = path.join(path.dirname(source.name), path.splitext(path.basename(source.name))[0] + "_output")
+            if len(args.source) > 1 or output is None:
+                output = path.join(path.dirname(source.name), path.splitext(path.basename(source.name))[0] + "_output")
                 
             try:
-                sus_file.write_output(lang, path.join(args.output, lang))
+                sus_file.write_output(lang, path.join(output, lang))
             except susc.exceptions.SusOutputError as ex:
                 log.error(str(ex))
                 continue
