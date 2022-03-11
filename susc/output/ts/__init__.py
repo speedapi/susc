@@ -169,7 +169,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 f.write(f"\tconfirmations: [{conf_names}]\n")
                 f.write("};\n")
                 write_docstr(f, method)
-                f.write(f"class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
+                f.write(f"export class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
                 f.write("\tconstructor() {\n")
                 f.write(f"\t\tsuper({name}Spec, {method.value + (128 if method.static else 0)}, {entity.value});\n")
                 f.write("\t}\n")
@@ -230,7 +230,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("};\n\n\n")
 
         # write bind()
-        f.write("\nexport function bind(session: amogus.session.Session) {\n")
+        f.write("\nexport function $bind(session: amogus.session.Session) {\n")
         f.write("\treturn {\n")
         f.write("\t\tsession,\n")
         f.write("\t\t/*** METHODS ***/\n\n")
@@ -240,7 +240,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("\n\t\t/*** ENTITIES ***/\n\n")
         for entity in entities:
             write_docstr(f, entity, 2)
-            f.write(f"\t\t\"{entity.name}\": class extends {entity.name} {'{'}\n")
+            f.write(f"\t\t{entity.name}: class extends {entity.name} {'{'}\n")
             f.write("\t\t\tconstructor() { super(session); }\n")
             f.write("\t\t},\n")
         f.write("\n\t\t/*** ENUMS AND BITFIELDS ***/\n\n")
