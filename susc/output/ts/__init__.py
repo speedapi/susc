@@ -213,7 +213,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("}\n\n\n")
 
         # write spec space
-        f.write("\nexport const specSpace = {\n")
+        f.write("\nexport const $specSpace = {\n")
         f.write("\tspecVersion: 1,\n")
         f.write("\tglobalMethods: {\n")
         for method in methods:
