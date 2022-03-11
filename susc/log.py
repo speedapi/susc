@@ -19,7 +19,7 @@ def log(back, fore, prefix, text, file):
     print(f"{back}{fore} {prefix} {Back.RESET}{Fore.WHITE} {text}", file=file)
 
 def error(text):
-    log(Back.RED, Fore.BLACK, "ERROR", text, stderr)
+    log(Back.RED, Fore.BLACK, "ERR!", text, stderr)
 def warn(text):
     log(Back.YELLOW, Fore.BLACK, "WARN", text, stderr)
 def info(text):

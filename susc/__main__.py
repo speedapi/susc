@@ -13,10 +13,8 @@ def highlight(file):
         print(susc.log.highlight_syntax(line), end='')
 
 def main():
-    all_start = time()
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("source", help="file to compile", type=argparse.FileType(mode="r", encoding="utf8"))
+    parser.add_argument("source", help="file(s) to compile", type=argparse.FileType(mode="r", encoding="utf8"), nargs="+")
     parser.add_argument("-o", "--output", help="override output dir")
     parser.add_argument("-l", "--lang", help="override `set output` directive")
     parser.add_argument("-v", "--verbose", help="verbose logging", action="store_true")
@@ -29,9 +27,6 @@ def main():
     log.VERBOSE = args.verbose
     if log.VERBOSE:
         log.verbose("Verbose mode enabled")
-    # default value
-    if not args.output:
-        args.output = path.join(path.dirname(args.source.name), path.splitext(path.basename(args.source.name))[0] + "_output")
 
     if args.highlight:
         highlight(args.source)
@@ -41,29 +36,44 @@ def main():
         gen_ts(args.source)
         return
     
-    sus_file = susc.SusFile(args.source)
-    try:
-        sus_file.parse()
-    except susc.exceptions.SusError as ex:
-        log.error(str(ex))
-        return
-    
-    langs = args.lang or sus_file.settings.get("output", None)
-    if not langs:
-        log.warn(f"No output languages specified. Use the {Fore.GREEN}'set output <language list>'{Fore.WHITE} directive in the root file or pass {Fore.GREEN}'-l <language list>'{Fore.WHITE} to the compiler")
-        return
+    successful = 0
+    global_start = time()
+    for i, source in enumerate(args.source):
+        proj_start = time()
+        if len(args.source) > 1:
+            log.info(f"Compiling project {Fore.GREEN}'{source.name}'{Fore.WHITE} ({Fore.GREEN}{i + 1}/{len(args.source)}{Fore.WHITE})")
 
-    langs = langs.split()
-    for lang in langs:
+        sus_file = susc.SusFile(source)
         try:
-            sus_file.write_output(lang, path.join(args.output, lang))
-        except susc.exceptions.SusOutputError as ex:
+            sus_file.parse()
+        except susc.exceptions.SusError as ex:
             log.error(str(ex))
-            return
+            continue
+        
+        langs = args.lang or sus_file.settings.get("output", None)
+        if not langs:
+            log.error(f"{Fore.RED}No output languages specified. Use the 'set output <language list>' directive in the root file or pass '-l <language list>' to the compiler")
+            continue
 
-    all_end = time()
-    langs = len(langs)
-    log.done(f"Compiled project into {langs} language{'s' if langs > 1 else ''} in {int((all_end - all_start) * 1000)}ms")
+        langs = langs.split()
+        for lang in langs:
+            if not args.output:
+                args.output = path.join(path.dirname(source.name), path.splitext(path.basename(source.name))[0] + "_output")
+            try:
+                sus_file.write_output(lang, path.join(args.output, lang))
+            except susc.exceptions.SusOutputError as ex:
+                log.error(str(ex))
+                continue
+
+        proj_end = time()
+        successful += 1
+        took = int((proj_end - proj_start) * 1000)
+        log.done(f"Compiled project into {len(langs)} language{'s' if len(langs) > 1 else ''} in {took}ms")
+
+    global_end = time()
+    took = int((global_end - global_start) * 1000)
+    if len(args.source) > 1:
+        log.done(f"Compiled {Fore.GREEN}{successful}/{len(args.source)}{Fore.WHITE} projects successfully in {took}ms")
 
 if __name__ == "__main__":
     main()

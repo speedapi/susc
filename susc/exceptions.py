@@ -61,7 +61,7 @@ class SusSourceError(SusError):
             """)
 
         error += f"{self.accent}{self.text}{Fore.RESET}\n"
-        return error
+        return error.strip("\n")
 
 class SusOutputError(SusError):
     def __init__(self, msg):
