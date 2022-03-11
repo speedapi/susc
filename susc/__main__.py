@@ -57,8 +57,10 @@ def main():
 
         langs = langs.split()
         for lang in langs:
-            if not args.output:
+            output = args.output
+            if len(args.source) == 1 or output is None:
                 args.output = path.join(path.dirname(source.name), path.splitext(path.basename(source.name))[0] + "_output")
+                
             try:
                 sus_file.write_output(lang, path.join(args.output, lang))
             except susc.exceptions.SusOutputError as ex:
