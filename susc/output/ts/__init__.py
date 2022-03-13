@@ -190,11 +190,10 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             # write class
             write_docstr(f, entity)
             f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
-            f.write("\tstatic staticSession?: amogus.session.Session;\n")
-            f.write("\tsession?: amogus.session.Session;\n")
-            f.write("\tconstructor(session?: amogus.session.Session) {\n")
-            f.write(f"\t\tsuper({name}Spec, {entity.value});\n")
-            f.write("\t\tthis.session = session;\n")
+            f.write("\tprotected static readonly session?: amogus.session.Session;\n")
+            f.write("\tprotected readonly dynSession?: amogus.session.Session;\n\n")
+            f.write(f"\tconstructor(value?: amogus.FieldValue<typeof {name}Spec[\"fields\"]>) {'{'}\n")
+            f.write(f"\t\tsuper({name}Spec, {entity.value}, value);\n")
             f.write("\t}\n")
 
             # write method functions
@@ -209,7 +208,12 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 f.write(f"\t): Promise<amogus.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
                 f.write(f"\t\tconst method = new {name}();\n")
                 f.write(f"\t\tmethod.params = params;\n")
-                f.write(f"\t\treturn await (session ?? this.{'staticS' if method.static else 's'}ession)!.invokeMethod(method, confirm);\n")
+                if method.static:
+                    f.write("\t\treturn await (session ?? this.session)!.invokeMethod(method, confirm);\n")
+                else:
+                    f.write("\t\tif(!this.value) throw new Error(\"Entity must have a value\");\n")
+                    f.write("\t\tmethod.entityId = this.value.id;\n")
+                    f.write("\t\treturn await (session ?? this.dynSession)!.invokeMethod(method, confirm);\n")
                 f.write("\t}\n")
             f.write("}\n\n\n")
 
@@ -242,8 +246,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         for entity in entities:
             write_docstr(f, entity, 2)
             f.write(f"\t\t{entity.name}: class extends {entity.name} {'{'}\n")
-            f.write("\t\t\tstatic staticSession = session;\n")
-            f.write("\t\t\tconstructor() { super(session); }\n")
+            f.write("\t\t\tprotected readonly dynSession = session;\n")
+            f.write("\t\t\tprotected static readonly session = session;\n")
             f.write("\t\t},\n")
         f.write("\n\t\t/*** ENUMS AND BITFIELDS ***/\n\n")
         for thing in enums_and_bfs:
