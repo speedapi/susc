@@ -29,11 +29,11 @@ def main():
         log.verbose("Verbose mode enabled")
 
     if args.highlight:
-        highlight(args.source)
+        highlight(args.source[0])
         return
 
     if args.gen_ts:
-        gen_ts(args.source)
+        gen_ts(args.source[0])
         return
 
     if len(args.source) > 1 and args.output is not None:
