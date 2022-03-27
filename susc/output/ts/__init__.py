@@ -158,7 +158,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write(f"): Promise<amogus.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
             f.write(f"\tconst method = new {name}();\n")
             f.write(f"\tmethod.params = params;\n")
-            f.write(f"\treturn await (session ?? this.session).invokeMethod(method, confirm);\n")
+            f.write(f"\treturn await (session ?? this.$session).invokeMethod(method, confirm);\n")
             f.write("}\n\n\n")
 
         # write entities

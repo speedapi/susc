@@ -6,7 +6,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="susc",
-    version="0.6.1",
+    version="0.6.2",
     description="AMOGUS SUS description language compiler",
     long_description=README,
     long_description_content_type="text/markdown",
