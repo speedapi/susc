@@ -50,15 +50,24 @@ def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
         elements = type_to_amogus(type_.args[0], obj_types)
         return f"new amogus.repr.List({elements}, {type_.args[1]}, {type_validators(type_)})"
 
+    if type_.name == "Entity":
+        return "new amogus.repr.Entity()"
+
     if type_.name in obj_types:
+        # determine the type of the object from its name
         t_name = {
-            "entities": "SpecificEntity",
+            "entities": "Entity",
             "bitfields": "EnumOrBf",
             "enums": "EnumOrBf",
             "confirmations": "Confirmation"
         }[obj_types[type_.name]]
+
         if t_name == "EnumOrBf":
             return f"new amogus.repr.EnumOrBf<{type_.name}>({type_.name}_SIZE)"
+
+        if t_name == "Entity":
+            return "new amogus.repr.Entity()"
+        
         return f"new amogus.repr.{t_name}({type_.name})"
 
     return f"new amogus.repr.{type_.name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
@@ -237,7 +246,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         # write bind()
         f.write("\nexport function $bind(session: amogus.session.Session) {\n")
         f.write("\treturn {\n")
-        f.write("\t\tsession,\n")
+        f.write("\t\t$session: session,\n")
         f.write("\t\t$close: async () => await session.stop(),\n")
         f.write("\t\t/*** METHODS ***/\n\n")
         for method in methods:
