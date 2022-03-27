@@ -238,6 +238,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("\nexport function $bind(session: amogus.session.Session) {\n")
         f.write("\treturn {\n")
         f.write("\t\tsession,\n")
+        f.write("\t\t$close: async () => await session.stop(),\n")
         f.write("\t\t/*** METHODS ***/\n\n")
         for method in methods:
             write_docstr(f, method, 2)
