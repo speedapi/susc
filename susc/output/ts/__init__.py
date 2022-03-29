@@ -151,11 +151,11 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             # write function
             write_docstr(f, method)
             f.write(f"async function {snake_to_camel(method.name)}(\n")
-            f.write("\tthis: any | amogus.session.BoundSession,\n")
-            f.write(f"\tparams: amogus.FieldValue<typeof {name}Spec[\"params\"]>,\n")
-            f.write(f"\tconfirm?: amogus.session.ConfCallback<{name}>,\n")
-            f.write("\tsession?: amogus.session.Session\n")
-            f.write(f"): Promise<amogus.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
+            f.write("\tthis: any | amogus.BoundSession,\n")
+            f.write(f"\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
+            f.write(f"\tconfirm?: amogus.ConfCallback<{name}>,\n")
+            f.write("\tsession?: amogus.Session\n")
+            f.write(f"): Promise<amogus.repr.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
             f.write(f"\tconst method = new {name}();\n")
             f.write(f"\tmethod.params = params;\n")
             f.write(f"\treturn await (session ?? this.$session).invokeMethod(method, confirm);\n")
@@ -199,9 +199,9 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             # write class
             write_docstr(f, entity)
             f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
-            f.write("\tprotected static readonly session?: amogus.session.Session;\n")
-            f.write("\tprotected readonly dynSession?: amogus.session.Session;\n\n")
-            f.write(f"\tconstructor(value?: amogus.FieldValue<typeof {name}Spec[\"fields\"]>) {'{'}\n")
+            f.write("\tprotected static readonly session?: amogus.Session;\n")
+            f.write("\tprotected readonly dynSession?: amogus.Session;\n\n")
+            f.write(f"\tconstructor(value?: amogus.repr.FieldValue<typeof {name}Spec[\"fields\"]>) {'{'}\n")
             f.write(f"\t\tsuper({name}Spec, {entity.value}, value);\n")
             f.write("\t}\n")
 
@@ -211,10 +211,10 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 write_docstr(f, method, 1)
                 static = "static " if method.static else ""
                 f.write(f"\n\t{static}async {snake_to_camel(method.name)}(\n")
-                f.write(f"\t\tparams: amogus.FieldValue<typeof {name}Spec[\"params\"]>,\n")
-                f.write(f"\t\tconfirm?: amogus.session.ConfCallback<{name}>,\n")
-                f.write("\t\tsession?: amogus.session.Session\n")
-                f.write(f"\t): Promise<amogus.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
+                f.write(f"\t\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
+                f.write(f"\t\tconfirm?: amogus.ConfCallback<{name}>,\n")
+                f.write("\t\tsession?: amogus.Session\n")
+                f.write(f"\t): Promise<amogus.repr.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
                 f.write(f"\t\tconst method = new {name}();\n")
                 f.write(f"\t\tmethod.params = params;\n")
                 if method.static:
@@ -244,7 +244,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("};\n\n\n")
 
         # write bind()
-        f.write("\nexport function $bind(session: amogus.session.Session) {\n")
+        f.write("\nexport function $bind(session: amogus.Session) {\n")
         f.write("\treturn {\n")
         f.write("\t\t$session: session,\n")
         f.write("\t\t$close: async () => await session.stop(),\n")
