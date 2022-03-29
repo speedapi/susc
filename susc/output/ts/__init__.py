@@ -210,7 +210,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 name = f"{entity.name}_{snake_to_pascal(method.name)}"
                 write_docstr(f, method, 1)
                 static = "static " if method.static else ""
-                f.write(f"\n\t{static}async {snake_to_camel(method.name)}(\n")
+                protected, override = ("protected ", "override ") if method.name in ("get", "update") else ("", "")
+                f.write(f"\n\t{protected}{static}{override}async {snake_to_camel(method.name)}(\n")
                 f.write(f"\t\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
                 f.write(f"\t\tconfirm?: amogus.ConfCallback<{name}>,\n")
                 f.write("\t\tsession?: amogus.Session\n")
@@ -227,21 +228,26 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("}\n\n\n")
 
         # write spec space
-        f.write("\nexport const $specSpace = {\n")
-        f.write("\tspecVersion: 1,\n")
-        f.write("\tglobalMethods: {\n")
+        f.write("\nexport function $specSpace(session: amogus.Session) {\n")
+        f.write("\treturn {\n")
+        f.write("\t\tspecVersion: 1,\n")
+        f.write("\t\tglobalMethods: {\n")
         for method in methods:
-            f.write(f"\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
-        f.write("\t},\n")
-        f.write("\tentities: {\n")
+            f.write(f"\t\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
+        f.write("\t\t},\n")
+        f.write("\t\tentities: {\n")
         for entity in entities:
-            f.write(f"\t\t{entity.value}: new {entity.name}(),\n")
-        f.write("\t},\n")
-        f.write("\tconfirmations: {\n")
+            f.write(f"\t\t\t{entity.value}: new class extends {entity.name} {'{'}\n")
+            f.write("\t\t\t\tprotected readonly dynSession = session;\n")
+            f.write("\t\t\t\tprotected static readonly session = session;\n")
+            f.write("\t\t\t} (),\n")
+        f.write("\t\t},\n")
+        f.write("\t\tconfirmations: {\n")
         for confirmation in confirmations:
-            f.write(f"\t\t{confirmation.value}: new {confirmation.name}(),\n")
-        f.write("\t}\n")
-        f.write("};\n\n\n")
+            f.write(f"\t\t\t{confirmation.value}: new {confirmation.name}(),\n")
+        f.write("\t\t},\n")
+        f.write("\t};\n")
+        f.write("}\n\n\n")
 
         # write bind()
         f.write("\nexport function $bind(session: amogus.Session) {\n")

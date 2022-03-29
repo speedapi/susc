@@ -91,7 +91,7 @@ class SusFile():
                 thing = convert_ast(thing, self)
                 log.verbose(f"Converted AST subtree: {Fore.WHITE}{log.highlight_thing(thing)}")
                 self.things.append(thing)
-                # generate optional field select bitfields for entities
+                # generate optional field select bitfields and methods for entities
                 if isinstance(thing, SusEntity):
                     log.verbose(thing.fields)
                     opt_members = [SusEnumMember(f.location, None, f.name, f.optional) for f in thing.fields if f.optional != None]
@@ -102,6 +102,33 @@ class SusFile():
                         log.verbose(f"Generated optional field select bitfield: {Fore.WHITE}{log.highlight_thing(bitfield)}")
                     else:
                         log.verbose("No optional fields, not generating a field select bitfield")
+                    # add default methods
+                    thing.methods.append(SusMethod(
+                        thing.location,
+                        f"Gets {thing.name} by ID",
+                        True,
+                        "get",
+                        127,
+                        [SusField(thing.location, "ID of the entity to get", "id", SusType(thing.location, None, "Int", [1], []), None, None, None)],
+                        [SusField(thing.location, "Entity with that ID", "entity", SusType(thing.location, None, thing.name, [], []), None, None, None)],
+                        ["invalid_id"],
+                        [],
+                        ["normal"],
+                        None
+                    ))
+                    thing.methods.append(SusMethod(
+                        thing.location,
+                        f"Updates {thing.name}",
+                        False,
+                        "update",
+                        127,
+                        [SusField(thing.location, "The values to update", "entity", SusType(thing.location, None, thing.name, [], []), None, None, None)],
+                        [],
+                        ["invalid_entity"],
+                        [],
+                        ["normal"],
+                        None
+                    ))
 
         # parse dependencies
         all_things = self.things
@@ -259,7 +286,7 @@ class SusFile():
                 for method in m_set:
                     matching = [t for t in m_set if t.value == method.value]
                     if len(matching) != 1:
-                        raise SusSourceError([t.location for t in matching], f"Multiple methods with matching values '{thing.value}'")
+                        raise SusSourceError([t.location for t in matching], f"Multiple methods with matching values '{method.value}'")
 
         # strip docstrings
         log.verbose("Stripping docstrings")
