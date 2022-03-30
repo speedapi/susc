@@ -230,7 +230,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         # write spec space
         f.write("\nexport function $specSpace(session: amogus.Session) {\n")
         f.write("\treturn {\n")
-        f.write("\t\tspecVersion: 1,\n")
+        f.write("\t\tspecVersion: \"2\" as \"2\",\n")
         f.write("\t\tglobalMethods: {\n")
         for method in methods:
             f.write(f"\t\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
