@@ -109,7 +109,7 @@ class SusFile():
                         True,
                         "get",
                         127,
-                        [SusField(thing.location, "ID of the entity to get", "id", SusType(thing.location, None, "Int", [2], []), None, None, None)],
+                        [SusField(thing.location, "ID of the entity to get", "id", SusType(thing.location, None, "Int", [8], []), None, None, None)],
                         [SusField(thing.location, "Entity with that ID", "entity", SusType(thing.location, None, thing.name, [], []), None, None, None)],
                         ["invalid_id"],
                         [],
