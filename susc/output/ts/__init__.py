@@ -6,6 +6,7 @@ from susc.things import *
 from os import makedirs, path, write
 from susc import log
 from colorama import Fore
+from nanoid import generate as nanoid
 
 LICENSE = """ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the “Software”), to deal in the Software without restriction,
@@ -78,8 +79,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
     f" * Project name: {proj_name}\n *\n"
     "" + LICENSE + "\n */\n\n")
 
-    # display lib notice
-    # log.info(f"TypeScript: Install the {Fore.GREEN}'amogus-driver'{Fore.WHITE} library from npm to make use of this output")
+    # pick random identifier
+    proj_id = f"{proj_name}-{nanoid(size=10)}"
 
     # construct a name-to-type mapping
     objs = {}
@@ -205,13 +206,19 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write(f"\t\tsuper({name}Spec, {entity.value}, value);\n")
             f.write("\t}\n")
 
+            # write fields
+            f.write("\n")
+            for field in entity.fields:
+                f.write(f"\tget {field.name}() {'{'} return this.value?.{field.name}; {'}'}\n")
+
             # write method functions
             for method in entity.methods:
                 name = f"{entity.name}_{snake_to_pascal(method.name)}"
+                f.write("\n")
                 write_docstr(f, method, 1)
                 static = "static " if method.static else ""
-                protected, override = ("protected ", "override ") if method.name in ("get", "update") else ("", "")
-                f.write(f"\n\t{protected}{static}{override}async {snake_to_camel(method.name)}(\n")
+                protected = "protected " if method.name in ("get", "update") else ""
+                f.write(f"\t{protected}{static}async {snake_to_camel(method.name)}(\n")
                 f.write(f"\t\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
                 f.write(f"\t\tconfirm?: amogus.ConfCallback<{name}>,\n")
                 f.write("\t\tsession?: amogus.Session\n")
@@ -225,12 +232,19 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                     f.write("\t\tmethod.entityId = this.value.id;\n")
                     f.write("\t\treturn await (session ?? this.dynSession)!.invokeMethod(method, confirm);\n")
                 f.write("\t}\n")
+
+            # write $get()
+            f.write("\n\tstatic async $get(id: number) {\n")
+            f.write(f"\t\treturn (await this.get({'{'} id {'}'})).entity as amogus.ConcreteValuedEntity<{entity.name}>;\n")
+            f.write("\t}\n")
+
             f.write("}\n\n\n")
 
         # write spec space
         f.write("\nexport function $specSpace(session: amogus.Session) {\n")
         f.write("\treturn {\n")
         f.write("\t\tspecVersion: \"2\" as \"2\",\n")
+        f.write(f"\t\tproject: \"{proj_id}\",\n")
         f.write("\t\tglobalMethods: {\n")
         for method in methods:
             f.write(f"\t\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
@@ -249,8 +263,10 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("\t};\n")
         f.write("}\n\n\n")
 
-        # write bind()
+        # write $bind()
         f.write("\nexport function $bind(session: amogus.Session) {\n")
+        f.write(f"\tif(session.specSpace.project !== \"{proj_id}\")\n")
+        f.write("\t\tthrow new Error(\"failed to $bind: project identifier does not match\")\n\n")
         f.write("\treturn {\n")
         f.write("\t\t$session: session,\n")
         f.write("\t\t$close: async () => await session.stop(),\n")
@@ -261,10 +277,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("\n\t\t/*** ENTITIES ***/\n\n")
         for entity in entities:
             write_docstr(f, entity, 2)
-            f.write(f"\t\t{entity.name}: class extends {entity.name} {'{'}\n")
-            f.write("\t\t\tprotected readonly dynSession = session;\n")
-            f.write("\t\t\tprotected static readonly session = session;\n")
-            f.write("\t\t},\n")
+            f.write(f"\t\t{entity.name}: session.specSpace.entities[{entity.value}].constructor as typeof {entity.name},\n")
         f.write("\n\t\t/*** ENUMS AND BITFIELDS ***/\n\n")
         for thing in enums_and_bfs:
             write_docstr(f, thing, 2)
