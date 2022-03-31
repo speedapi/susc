@@ -133,6 +133,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             # write spec
             name = snake_to_pascal(method.name)
             f.write(f"const {name}Spec = {'{'}\n")
+            f.write(f"\tname: \"{method.name}\" as const,\n")
             f.write("\tparams: {\n")
             write_field_array(f, method.parameters, objs)
             f.write("\t},\n")
@@ -155,7 +156,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("\tthis: any | amogus.BoundSession,\n")
             f.write(f"\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
             f.write(f"\tconfirm?: amogus.ConfCallback<{name}>,\n")
-            f.write("\tsession?: amogus.Session\n")
+            f.write("\tsession?: amogus.Session<amogus.SpecSpace>\n")
             f.write(f"): Promise<amogus.repr.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
             f.write(f"\tconst method = new {name}();\n")
             f.write(f"\tmethod.params = params;\n")
@@ -169,6 +170,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             for method in entity.methods:
                 name = f"{entity.name}_{snake_to_pascal(method.name)}"
                 f.write(f"const {name}Spec = {'{'}\n")
+                f.write(f"\tname: \"{entity.name}.{method.name}\" as const,\n")
                 f.write("\tparams: {\n")
                 write_field_array(f, method.parameters, objs)
                 f.write("\t},\n")
@@ -200,8 +202,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             # write class
             write_docstr(f, entity)
             f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
-            f.write("\tprotected static readonly session?: amogus.Session;\n")
-            f.write("\tprotected readonly dynSession?: amogus.Session;\n\n")
+            f.write("\tprotected static readonly session?: amogus.Session<amogus.SpecSpace>;\n")
+            f.write("\tprotected readonly dynSession?: amogus.Session<amogus.SpecSpace>;\n\n")
             f.write(f"\tconstructor(value?: amogus.repr.FieldValue<typeof {name}Spec[\"fields\"]>) {'{'}\n")
             f.write(f"\t\tsuper({name}Spec, {entity.value}, value);\n")
             f.write("\t}\n")
@@ -221,7 +223,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 f.write(f"\t{protected}{static}async {snake_to_camel(method.name)}(\n")
                 f.write(f"\t\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
                 f.write(f"\t\tconfirm?: amogus.ConfCallback<{name}>,\n")
-                f.write("\t\tsession?: amogus.Session\n")
+                f.write("\t\tsession?: amogus.Session<amogus.SpecSpace>\n")
                 f.write(f"\t): Promise<amogus.repr.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
                 f.write(f"\t\tconst method = new {name}();\n")
                 f.write(f"\t\tmethod.params = params;\n")
@@ -241,10 +243,10 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             f.write("}\n\n\n")
 
         # write spec space
-        f.write("\nexport function $specSpace(session: amogus.Session) {\n")
+        f.write("\nexport function $specSpace(session: amogus.Session<amogus.SpecSpace>) {\n")
         f.write("\treturn {\n")
-        f.write("\t\tspecVersion: \"2\" as \"2\",\n")
-        f.write(f"\t\tproject: \"{proj_id}\",\n")
+        f.write("\t\tspecVersion: \"2\" as const,\n")
+        f.write(f"\t\tproject: \"{proj_id}\" as const,\n")
         f.write("\t\tglobalMethods: {\n")
         for method in methods:
             f.write(f"\t\t\t{method.value}: new {snake_to_pascal(method.name)}(),\n")
@@ -264,7 +266,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("}\n\n\n")
 
         # write $bind()
-        f.write("\nexport function $bind(session: amogus.Session) {\n")
+        f.write("\nexport function $bind(session: amogus.Session<amogus.SpecSpace>) {\n")
         f.write(f"\tif(session.specSpace.project !== \"{proj_id}\")\n")
         f.write("\t\tthrow new Error(\"failed to $bind: project identifier does not match\")\n\n")
         f.write("\treturn {\n")
@@ -300,8 +302,7 @@ def write_field_array(f, fields, objs, indent=2):
         write_docstr(f, field, len(indent) + 1)
         type_ = type_to_amogus(field.type_, objs)
         repr_class = type_[:type_.find("(")]
-        repr_class = repr_class[4:] # remove "new "
-        f.write(f"{indent}\t{field.name}: [{field.optional}, {type_}] as [number, {repr_class}],\n")
+        f.write(f"{indent}\t{field.name}: [{field.optional}, {type_}] as const,\n")
     f.write(f"{indent}{'}'}\n")
 
 
