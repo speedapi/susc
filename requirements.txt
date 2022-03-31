@@ -3,3 +3,4 @@ colorama
 markdown
 watchgod
 nanoid
+wheel
