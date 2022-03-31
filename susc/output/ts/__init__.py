@@ -203,7 +203,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             write_docstr(f, entity)
             f.write(f"export class {name} extends amogus.Entity<typeof {name}Spec> {'{'}\n")
             f.write("\tprotected static readonly session?: amogus.Session<amogus.SpecSpace>;\n")
-            f.write("\tprotected readonly dynSession?: amogus.Session<amogus.SpecSpace>;\n\n")
+            f.write("\treadonly dynSession?: amogus.Session<amogus.SpecSpace>;\n\n")
             f.write(f"\tconstructor(value?: amogus.repr.FieldValue<typeof {name}Spec[\"fields\"]>) {'{'}\n")
             f.write(f"\t\tsuper({name}Spec, {entity.value}, value);\n")
             f.write("\t}\n")
@@ -219,7 +219,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 f.write("\n")
                 write_docstr(f, method, 1)
                 static = "static " if method.static else ""
-                protected = "protected " if method.name in ("get", "update") else ""
+                protected = "protected " if method.name == "get" else ""
                 f.write(f"\t{protected}{static}async {snake_to_camel(method.name)}(\n")
                 f.write(f"\t\tparams: amogus.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
                 f.write(f"\t\tconfirm?: amogus.ConfCallback<{name}>,\n")
@@ -254,7 +254,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
         f.write("\t\tentities: {\n")
         for entity in entities:
             f.write(f"\t\t\t{entity.value}: new class extends {entity.name} {'{'}\n")
-            f.write("\t\t\t\tprotected readonly dynSession = session;\n")
+            f.write("\t\t\t\treadonly dynSession = session;\n")
             f.write("\t\t\t\tprotected static readonly session = session;\n")
             f.write("\t\t\t} (),\n")
         f.write("\t\t},\n")
