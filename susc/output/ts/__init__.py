@@ -237,7 +237,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
 
             # write $get()
             f.write("\n\tstatic async $get(id: number) {\n")
-            f.write(f"\t\treturn (await this.get({'{'} id {'}'})).entity as amogus.ConcreteValuedEntity<{entity.name}>;\n")
+            f.write(f"\t\treturn (await this.get({'{'} id {'}'})).entity as amogus.ValuedEntity<{entity.name}>;\n")
             f.write("\t}\n")
 
             f.write("}\n\n\n")
