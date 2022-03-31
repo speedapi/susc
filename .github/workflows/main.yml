@@ -1,0 +1,29 @@
+name: Publish library
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v3.0.0
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Build package
+      run: python setup.py sdist bdist_wheel
+
+    - name: Upload package
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
