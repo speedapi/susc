@@ -134,6 +134,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
             name = snake_to_pascal(method.name)
             f.write(f"const {name}Spec = {'{'}\n")
             f.write(f"\tname: \"{method.name}\" as const,\n")
+            if method.rate_limit:
+                f.write(f"\trateLimit: [{method.rate_limit[0]}, {method.rate_limit[1]}] as const,\n")
             f.write("\tparams: {\n")
             write_field_array(f, method.parameters, objs)
             f.write("\t},\n")
@@ -171,6 +173,8 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 name = f"{entity.name}_{snake_to_pascal(method.name)}"
                 f.write(f"const {name}Spec = {'{'}\n")
                 f.write(f"\tname: \"{entity.name}.{method.name}\" as const,\n")
+                if method.rate_limit:
+                    f.write(f"\trateLimit: [{method.rate_limit[0]}, {method.rate_limit[1]}] as const,\n")
                 f.write("\tparams: {\n")
                 write_field_array(f, method.parameters, objs)
                 f.write("\t},\n")
