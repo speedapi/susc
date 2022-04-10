@@ -86,7 +86,7 @@ def combine(things: List[SusThing]) -> List[SusThing]:
             SusSourceError([thing1.location], f"Value '{thing1.value}' overflow (max '15')").print_warn()
 
     log.verbose(f"Combined {len(things)} definitions into {len(out)} things")
-    return things
+    return out
 
 def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMethod]]) -> None:
     log.verbose("Validating method metdata")

@@ -63,11 +63,10 @@ CACHING_SEL       : "hard" | "soft"
 static_method     : [DOCSTRING] "staticmethod" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
 normal_method     : [DOCSTRING] "method" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
 global_method     : [DOCSTRING] "globalmethod" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
-?method_directive : method_param | returns | errors | states | confirmations | rate_limit
+?method_directive : method_param | returns | errors | confirmations | rate_limit
 method_param      : [DOCSTRING] PARAM_IDENTIFIER ":" [field_opt] type ["=" value] ";"
 returns           : "returns" "{" method_param* "}"
 errors            : "errors" "{" _sep{FIELD_IDENTIFIER, ","} "}"
-states            : "states" "{" _sep{FIELD_IDENTIFIER, ","} "}"
 confirmations     : "confirmations" "{" _sep{ROOT_IDENTIFIER, ","} "}"
 rate_limit        : "ratelimit" NUMBER "every" TIMEOUT ";"
 

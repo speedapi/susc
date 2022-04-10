@@ -112,7 +112,6 @@ class SusFile():
                         [SusField(thing.location, "Entity with that ID", "entity", SusType(thing.location, None, thing.name, [], []), None, None, None)],
                         ["invalid_id"],
                         [],
-                        ["normal"],
                         None
                     ))
                     thing.methods.append(SusMethod(
@@ -125,7 +124,6 @@ class SusFile():
                         [],
                         ["invalid_entity"],
                         [],
-                        ["normal"],
                         None
                     ))
 

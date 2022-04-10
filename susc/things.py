@@ -137,7 +137,6 @@ class SusMethod(SusThing):
     returns: List[SusField]
     errors: List[str]
     confirmations: List[str]
-    states: List[str]
     rate_limit: Tuple[int, int]
 
 @dataclass
@@ -305,9 +304,12 @@ def convert_method(ast, file):
         elif directive.data == "returns":
             for p in directive.children:
                 returns.append(convert_param(p, file))
-        elif directive.data in ["errors", "states", "confirmations"]:
-            lst = {"errors": errors, "states": states, "confirmations": confirmations}[directive.data]
+        elif directive.data in ["errors", "confirmations"]:
+            lst = {"errors": errors, "confirmations": confirmations}[directive.data]
             for e in directive.children:
+                if e.value in lst:
+                    SusSourceError([SusLocation(file, e.line, e.column, len(e.value))],
+                        f"Duplicate member \"{e.value}\" for this directive").print_warn()
                 lst.append(e.value)
         elif directive.data == "rate_limit":
             amount = int(directive.children[0].value)
@@ -315,7 +317,7 @@ def convert_method(ast, file):
             rate_limit = (amount, window)
 
     return SusMethod(SusLocation(file, name.line, name.column, len(name.value)), doc, static, name.value,
-        value, params, returns, errors, confirmations, states, rate_limit)
+        value, params, returns, errors, confirmations, rate_limit)
 
 def convert_ast(ast, file):
     if ast.data in ["enum", "bitfield"]:
