@@ -145,12 +145,14 @@ def run(things: List[SusThing]) -> List[SusThing]:
     entities = [t for t in things if isinstance(t, SusEntity)]
     methods = [t for t in things if isinstance(t, SusMethod)]
     confirmations = [t for t in things if isinstance(t, SusConfirmation)]
+    compounds = [t for t in things if isinstance(t, SusCompound)]
     for e in entities: methods += e.methods
     field_sets = [e.fields for e in entities]
     field_sets += [m.parameters for m in methods]
     field_sets += [m.returns for m in methods]
     field_sets += [m.req_parameters for m in confirmations]
     field_sets += [m.resp_parameters for m in confirmations]
+    field_sets += [c.fields for c in compounds]
     # get all methods
     method_sets = [[t for t in things if isinstance(t, SusMethod)]]
     for e in entities:
