@@ -93,13 +93,16 @@ def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMetho
 
     errors = [t for t in things if isinstance(t, SusEnum) and t.name == "ErrorCode"]
     confirmations = [t.name for t in things if isinstance(t, SusConfirmation)]
-    if len(errors) == 0: raise SusSourceError([], "No 'ErrorCode' enum defined. Include 'impostor.sus' or use a custom definition")
-    errors = [m.name for m in errors[0].members]
+    error_names = []
     
     for m_set in method_sets:
         for method in m_set:
+            if len(method.errors) > 0 and len(errors) == 0:
+                raise SusSourceError([], "No 'ErrorCode' enum defined. Include 'impostor.sus' or use a custom definition")
+            errors_names = [m.name for m in errors[0].members]
+
             for err in method.errors:
-                if err not in errors:
+                if err not in errors_names:
                     raise SusSourceError([method.location], f"Undefined error code '{err}'")
             for conf in method.confirmations:
                 if conf not in confirmations:

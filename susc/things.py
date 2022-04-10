@@ -116,15 +116,9 @@ class SusBitfield(SusThing):
     members: List[SusEnumMember]
 
 @dataclass
-class SusCaching(SusThing):
-    hard: bool
-    timeout: int
-
-@dataclass
 class SusField(SusThing):
     name: str
     type_: SusType
-    caching: SusCaching
     optional: int
     default: Any
 
@@ -152,6 +146,11 @@ class SusConfirmation(SusThing):
     value: int
     req_parameters: List[SusField]
     resp_parameters: List[SusField]
+
+@dataclass
+class SusCompound(SusThing):
+    name: str
+    fields: List[SusField]
 
 
 def convert_docstring(doc: str) -> str:
@@ -239,13 +238,6 @@ def convert_opt(ast):
         return ast
     return int(ast.value)
 
-def convert_caching(ast):
-    if ast is None:
-        return ast
-    hard = ast.children[0].value == "hard"
-    timeout = convert_timeout(ast.children[1].value)
-    return SusCaching(None, hard, timeout)
-
 def convert_value(ast):
     if isinstance(ast, Tree) and ast.data == "value":
         ast = ast.children[0]
@@ -273,7 +265,7 @@ def convert_param(ast, file):
         default = convert_value(default)
         raise SusSourceError([location], "Invalid default value for this type")
 
-    return SusField(location, doc, name.value, type_, None, opt, default)
+    return SusField(location, doc, name.value, type_, opt, default)
 
 def convert_timeout(val):
     num, mul = re.match("(\d+)(\w+)", val).groups()
@@ -340,11 +332,10 @@ def convert_ast(ast, file):
                 doc = convert_docstring(directive.children[0])
                 identifier = directive.children[1]
                 opt = convert_opt(directive.children[2])
-                caching = convert_caching(directive.children[3])
-                type_ = convert_type(directive.children[4], file)
+                type_ = convert_type(directive.children[3], file)
                 location = SusLocation(file, identifier.line, identifier.column, len(identifier.value))
 
-                fields.append(SusField(location, doc, identifier.value, type_, caching, opt, None))
+                fields.append(SusField(location, doc, identifier.value, type_, opt, None))
 
             if directive.data.endswith("method"):
                 methods.append(convert_method(directive, file))
@@ -367,3 +358,21 @@ def convert_ast(ast, file):
 
         return SusConfirmation(SusLocation(file, name.line, name.column, len(name)), doc, name.value, value,
             req, resp)
+
+    elif ast.data == "compound":
+        doc = convert_docstring(ast.children[0])
+        name = ast.children[1]
+
+        directives = ast.children[2:]
+        fields, methods = [], []
+        for directive in directives:
+            doc = convert_docstring(directive.children[0])
+            identifier = directive.children[1]
+            opt = convert_opt(directive.children[2])
+            type_ = convert_type(directive.children[3], file)
+            location = SusLocation(file, identifier.line, identifier.column, len(identifier.value))
+
+            fields.append(SusField(location, doc, identifier.value, type_, opt, None))
+
+        return SusCompound(SusLocation(file, name.line, name.column, len(name.value)), doc,
+            name.value, fields)

@@ -3,7 +3,7 @@
 _sep{x, s}: [x (s x)*]
 
 start : thing*
-?thing : inclusion | setting
+?thing : inclusion | setting | compound
          | enum | bitfield | confirmation
          | global_method | entity
 
@@ -23,9 +23,7 @@ egm_field     : FIELD_IDENTIFIER ":" type
 
 ROOT_IDENTIFIER      : /[A-Z][A-Za-z]*/
 FIELD_IDENTIFIER     : /[a-z][a-z_]*/
-PARAM_IDENTIFIER     : /[a-z][a-z_]*/
 METHOD_IDENTIFIER    : /[a-z][a-z_]*/
-MAGIC_IDENTIFIER     : "!" TYPE_IDENTIFIER
 enum_member          : [DOCSTRING] FIELD_IDENTIFIER "(" NUMBER ")"
 VALIDATOR_IDENTIFIER : /[a-z][a-z_]+/
 TYPE_IDENTIFIER      : /[A-Z][A-Za-z]+/
@@ -45,8 +43,6 @@ TIMEOUT : NUMBER ("ms" | "s" | "m" | "h" | "d" | "mo" | "y")
 
 
 type            : TYPE_IDENTIFIER ["(" _sep{type_argument, ","} ")"] ["[" _sep{type_validator, ","}*"]"]
-                  | "compound" "{" (FIELD_IDENTIFIER ":" type ";")* "}" -> compound
-                  | MAGIC_IDENTIFIER
 type_argument   : type | NUMBER
 type_validator  : VALIDATOR_IDENTIFIER ":" validator_value
 validator_value : SIGNED_NUMBER | range | REGEX
@@ -54,22 +50,22 @@ validator_value : SIGNED_NUMBER | range | REGEX
 
 entity            : [DOCSTRING] "entity" ROOT_IDENTIFIER "(" NUMBER ")" "{" entity_directive* "}"
 ?entity_directive : static_method | normal_method | entity_field
-entity_field      : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] [field_caching] type ";"
+entity_field      : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] type ";"
 ?field_opt        : "opt" "(" NUMBER ")"
-field_caching     : "cache" "(" CACHING_SEL TIMEOUT ")"
-CACHING_SEL       : "hard" | "soft"
 
-
-static_method     : [DOCSTRING] "staticmethod" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
-normal_method     : [DOCSTRING] "method" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
-global_method     : [DOCSTRING] "globalmethod" METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
+_method{kw}       : [DOCSTRING] kw METHOD_IDENTIFIER "(" NUMBER ")" "{" method_directive* "}"
+static_method     : _method{"staticmethod"}
+normal_method     : _method{"method"}
+global_method     : _method{"globalmethod"}
 ?method_directive : method_param | returns | errors | confirmations | rate_limit
-method_param      : [DOCSTRING] PARAM_IDENTIFIER ":" [field_opt] type ["=" value] ";"
+method_param      : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] type ["=" value] ";"
 returns           : "returns" "{" method_param* "}"
 errors            : "errors" "{" _sep{FIELD_IDENTIFIER, ","} "}"
 confirmations     : "confirmations" "{" _sep{ROOT_IDENTIFIER, ","} "}"
 rate_limit        : "ratelimit" NUMBER "every" TIMEOUT ";"
 
+compound       : [DOCSTRING] "compound" ROOT_IDENTIFIER "{" compound_field* "}"
+compound_field : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] type ";"
 
 COMMENT: /#.*$/m
 %ignore COMMENT
