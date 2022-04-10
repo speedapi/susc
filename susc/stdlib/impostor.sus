@@ -1,8 +1,3 @@
-@> Represents connection states <@
-enum(1) State {
-    normal(255)
-}
-
 @> Represents operation error codes <@
 enum(2) ErrorCode {
     @> Global method got invoked in an unsupported connection state <@
