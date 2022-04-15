@@ -70,6 +70,14 @@ class SusType(SusTypeBase):
                 return "Bool takes no arguments"
             if len(self.validators) != 0:
                 return "Bool can't be validated"
+        elif self.name == "Bin":
+            if len(self.args) != 0:
+                return "Bin takes no arguments"
+            for v in self.validators:
+                if v.param != "len":
+                    return "The following validators are valid for Bin: 'len'"
+                if not isinstance(v.restriction, range):
+                    return "Bin[len] must be a range"
         elif self.name not in identifiers:
             return "Unknown type"
 
@@ -178,9 +186,6 @@ def convert_range(ast, max_val):
         return range(int(ast.children[0].value), int(ast.children[1].value) + 1) # python ranges exclude the right end
 
 def convert_type(ast, file):
-    if ast.data == "compound":
-        return convert_compound_type(ast, file)
-
     name = ast.children[0]
     args = []
     validators = []
@@ -223,15 +228,6 @@ def convert_type(ast, file):
 
     location = SusLocation(file, name.line, name.column, len(name.value))
     return SusType(location, None, name.value, args, validators)
-
-def convert_compound_type(ast, file):
-    members = []
-    for i in range(0, len(ast.children), 2):
-        name = ast.children[i]
-        type_ = ast.children[i + 1]
-        members.append(SusCompoundMember(SusLocation(file, name.line, name.column, len(name.value)),
-            name.value, convert_type(type_, file)))
-    return SusCompound(SusLocation(file, 0, 0, len("compound")), None, members)
 
 def convert_opt(ast):
     if ast is None:
