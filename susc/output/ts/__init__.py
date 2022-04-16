@@ -74,7 +74,11 @@ def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
         
         return f"new amogus.repr.{t_name}({type_.name})"
 
-    return f"new amogus.repr.{type_.name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
+    name = type_.name
+    if name == "Int" and type_.args[0] > 6:
+        name = "BigInteger"
+
+    return f"new amogus.repr.{name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
 
 def write_output(root_file: SusFile, target_dir: str) -> None:
     proj_name = path.splitext(path.basename(root_file.path))[0]
@@ -251,7 +255,7 @@ def write_output(root_file: SusFile, target_dir: str) -> None:
                 f.write("\t}\n")
 
             # write $get()
-            f.write("\n\tstatic async $get(id: number) {\n")
+            f.write("\n\tstatic async $get(id: bigint) {\n")
             f.write(f"\t\treturn (await this.get({'{'} id {'}'})).entity as amogus.ValuedEntity<{entity.name}>;\n")
             f.write("\t}\n")
 
