@@ -8,7 +8,7 @@ start : thing*
          | global_method | entity
 
 inclusion : "include" PATH
-PATH      : /[\w.:\/\\][\w.:\/\\ ]*/
+PATH      : /[^ ].*/
 
 setting   : "set" PARAMETER VALUE
 PARAMETER : /[a-z](_|[a-z])+/

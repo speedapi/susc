@@ -57,7 +57,7 @@ $ susc -p source.sus
 ```python
 from susc import File
 
-file = SusFile()
+file = File()
 # load file:
 file.load_from_file("/path/to/file.sus")
 # or

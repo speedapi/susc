@@ -66,12 +66,15 @@ class File():
 
         log.verbose(f"Loaded file: {Fore.WHITE}{self.path}{Fore.LIGHTBLACK_EX} {'(root)' if not self.parent else ''}")
 
-    def resolve_source(self, p):
-        targets = [
-            p,
-            path.join(path.dirname(self.path), p), # next to the current file
-            path.join(path.dirname(__file__), "stdlib", p) # in the standard library
+    def search_paths(self):
+        return [
+            ".",
+            path.dirname(self.path), # next to this file
+            path.join(path.dirname(__file__), "stdlib") # in the standard library
         ]
+
+    def resolve_source(self, p):
+        targets = [path.join(d, p) for d in self.search_paths()]
         targets += [t + ".sus" for t in targets if not t.endswith(".sus")] # try with .sus extension
         targets = [path.abspath(t) for t in targets]
         targets = sorted(set(targets), key=lambda x: targets.index(x)) # remove duplicates keeping the order
@@ -84,8 +87,29 @@ class File():
         locations = '\n'.join(targets)
         raise SearchError(f"Couldn't find or open '{p}' in any of the following locations:\n{locations}")
 
+    # provides insight into the parser state at that point
+    def insight(self, line: int, col: int) -> tuple[set[str], list]:
+        # convert line and column numbers to position within the string
+        pos = 0
+        for _ in range(line):
+            pos = self.source.find("\n", pos) + 1
+        pos += col
+
+        # get the source up to that point
+        source = self.source[:pos]
+
+        # try parsing
+        try:
+            lark_parser.parse(source)
+        except UnexpectedInput as e:
+            return e.expected, e.state.value_stack
+
+        return None # no expected tokens here
+
     def parse(self) -> Tuple[list[SusThing], list[Diagnostic]]:
         log.verbose(f"Parsing {Fore.WHITE}{self.path}")
+        self.things = []
+        self.dependencies = []
         diag = []
 
         try:
