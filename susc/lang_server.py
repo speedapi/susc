@@ -4,7 +4,7 @@ from pygls.lsp.methods import COMPLETION, TEXT_DOCUMENT_DID_CHANGE
 from pygls.lsp.types import DidChangeTextDocumentParams, Diagnostic, Range, Position
 
 from . import log
-from . import SusFile
+from . import File
 from . import exceptions
 
 server = LanguageServer()
@@ -14,28 +14,30 @@ def did_change(ls: LanguageServer, params: DidChangeTextDocumentParams):
     ls.show_message_log("Parsing project")
     source = ls.workspace.get_document(params.text_document.uri).source
 
-    file = SusFile()
+    file = File()
     file.load_from_text(source)
-    try:
-        file.parse()
-        ls.publish_diagnostics(params.text_document.uri, [])
-    except exceptions.SusSourceError as ex:
-        diag_list = []
-        for location in ex.locations:
-            if location.file != "<from source>":
+    _, diagnostics = file.parse()
+    diag_list = []
+
+    for diag in diagnostics:
+        for location in diag.locations:
+            # ignore locations that are not in the current file
+            if location.file.path != "<from source>":
                 continue
+
             diag = Diagnostic(
                 range=Range(
                     start=Position(line=location.line - 1, character=location.col - 1),
                     end=Position(line=location.line - 1, character=location.col - 1 + location.dur)
                 ),
-                message=ex.text,
+                message=diag.locations,
                 source="susc",
-                severity=1
+                severity=diag.level
             )
             diag_list.append(diag)
         
-        ls.publish_diagnostics(params.text_document.uri, diag_list)
+    log.verbose("Pushing diagnostics")
+    ls.publish_diagnostics(params.text_document.uri, diag_list)
 
     ls.show_message_log("Parsing done")
 

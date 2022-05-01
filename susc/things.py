@@ -6,13 +6,13 @@ from enum import Enum
 from lark.lexer import Token
 from lark.tree import Tree
 import re
-from .exceptions import SusSourceError, SusLocation
+from .exceptions import SourceError, Location
 from .log import verbose
 from textwrap import dedent
 
 @dataclass
 class SusThing(ABC):
-    location: SusLocation
+    location: Location
     docstring: str
 
 @dataclass
@@ -177,7 +177,7 @@ def convert_ebf_members(ast, file): # Enum or Bitfield
         doc = convert_docstring(member.children[0])
         name = member.children[1]
         value = int(member.children[2].value)
-        list.append(SusEnumMember(SusLocation(file, name.line, name.column, len(name.value)), doc, name.value, value))
+        list.append(SusEnumMember(Location(file, name.line, name.column, len(name.value)), doc, name.value, value))
     return list
     
 def convert_range(ast, max_val):
@@ -216,7 +216,7 @@ def convert_type(ast, file):
                 try:
                     val_val = re.compile(regex, flags_num)
                 except re.error as exc:
-                    raise SusSourceError([SusLocation(file, val_val.line, val_val.column + exc.pos + 1, 0)],
+                    raise SourceError([Location(file, val_val.line, val_val.column + exc.pos + 1, 0)],
                         f"Invalid regular expression: {exc.msg}")
             elif isinstance(val_val, Tree) and val_val.data == "range":
                 max_val = 2 ** 64
@@ -224,10 +224,10 @@ def convert_type(ast, file):
                 if name == "Int" and len(args) == 1 and isinstance(args[0], int):
                     max_val = 2 ** (args[0] * 8)
                 val_val = convert_range(val_val, max_val)
-            validators.append(SusValidator(SusLocation(file, val_name.line, val_name.column, len(val_name.value)), None,
+            validators.append(SusValidator(Location(file, val_name.line, val_name.column, len(val_name.value)), None,
                 val_name.value, val_val))
 
-    location = SusLocation(file, name.line, name.column, len(name.value))
+    location = Location(file, name.line, name.column, len(name.value))
     return SusType(location, None, name.value, args, validators)
 
 def convert_opt(ast):
@@ -253,14 +253,14 @@ def convert_param(ast, file):
     type_ = convert_type(ast.children[3], file)
     default = convert_value(ast.children[4])
 
-    location = SusLocation(file, name.line, name.column, len(name.value))
+    location = Location(file, name.line, name.column, len(name.value))
 
     if default is not None and opt is None:
-        raise SusSourceError([location], "Default value specified yet the field isn't optional")
+        raise SourceError([location], "Default value specified yet the field isn't optional")
 
     if default is not None and not type_.validate_value(default):
         default = convert_value(default)
-        raise SusSourceError([location], "Invalid default value for this type")
+        raise SourceError([location], "Invalid default value for this type")
 
     return SusField(location, doc, name.value, type_, opt, default)
 
@@ -298,7 +298,7 @@ def convert_method(ast, file):
             lst = {"errors": errors, "confirmations": confirmations}[directive.data]
             for e in directive.children:
                 if e.value in lst:
-                    SusSourceError([SusLocation(file, e.line, e.column, len(e.value))],
+                    SourceError([Location(file, e.line, e.column, len(e.value))],
                         f"Duplicate member \"{e.value}\" for this directive").print_warn()
                 lst.append(e.value)
         elif directive.data == "rate_limit":
@@ -306,7 +306,7 @@ def convert_method(ast, file):
             window = convert_timeout(directive.children[1].value)
             rate_limit = (amount, window)
 
-    return SusMethod(SusLocation(file, name.line, name.column, len(name.value)), doc, static, name.value,
+    return SusMethod(Location(file, name.line, name.column, len(name.value)), doc, static, name.value,
         value, params, returns, errors, confirmations, rate_limit)
 
 def convert_ast(ast, file):
@@ -315,7 +315,7 @@ def convert_ast(ast, file):
         doc = convert_docstring(ast.children[0])
         size = int(ast.children[1].value)
         name = ast.children[2]
-        return constructor(SusLocation(file, name.line, name.column, len(name)), doc,
+        return constructor(Location(file, name.line, name.column, len(name)), doc,
             name.value, size, convert_ebf_members(ast.children[3:], file))
 
     elif ast.data == "entity":
@@ -331,14 +331,14 @@ def convert_ast(ast, file):
                 identifier = directive.children[1]
                 opt = convert_opt(directive.children[2])
                 type_ = convert_type(directive.children[3], file)
-                location = SusLocation(file, identifier.line, identifier.column, len(identifier.value))
+                location = Location(file, identifier.line, identifier.column, len(identifier.value))
 
                 fields.append(SusField(location, doc, identifier.value, type_, opt, None))
 
             if directive.data.endswith("method"):
                 methods.append(convert_method(directive, file))
 
-        return SusEntity(SusLocation(file, name.line, name.column, len(name.value)), doc,
+        return SusEntity(Location(file, name.line, name.column, len(name.value)), doc,
             name.value, int(value.value), fields, methods)
 
     elif ast.data == "global_method":
@@ -354,7 +354,7 @@ def convert_ast(ast, file):
         req = [convert_param(par, file) for par in req.children if par]
         resp = [convert_param(par, file) for par in resp.children if par]
 
-        return SusConfirmation(SusLocation(file, name.line, name.column, len(name)), doc, name.value, value,
+        return SusConfirmation(Location(file, name.line, name.column, len(name)), doc, name.value, value,
             req, resp)
 
     elif ast.data == "compound":
@@ -369,9 +369,9 @@ def convert_ast(ast, file):
             identifier = directive.children[1]
             opt = convert_opt(directive.children[2])
             type_ = convert_type(directive.children[3], file)
-            location = SusLocation(file, identifier.line, identifier.column, len(identifier.value))
+            location = Location(file, identifier.line, identifier.column, len(identifier.value))
 
             fields.append(SusField(location, doc, identifier.value, type_, opt, None))
 
-        return SusCompound(SusLocation(file, name.line, name.column, len(name.value)), doc,
+        return SusCompound(Location(file, name.line, name.column, len(name.value)), doc,
             name.value, fields)

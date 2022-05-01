@@ -3,7 +3,7 @@ from os import path
 from colorama import Fore
 from time import time
 
-from . import SusFile
+from . import File
 from . import exceptions
 from . import log
 from . import lang_server
@@ -56,12 +56,18 @@ def main():
         if len(args.source) > 1:
             log.info(f"Compiling project {Fore.GREEN}'{source.name}'{Fore.WHITE} ({Fore.GREEN}{i + 1}/{len(args.source)}{Fore.WHITE})")
 
-        sus_file = SusFile()
+        sus_file = File()
         sus_file.load_from_file(source)
-        try:
-            sus_file.parse()
-        except exceptions.SusError as ex:
-            log.error(str(ex))
+
+        # parse file and print diagnostics
+        _, diagnostics = sus_file.parse()
+        has_error = False
+        for diag in diagnostics:
+            exceptions.SourceError(diag).print()
+            print()
+            if diag.level == exceptions.DiagLevel.ERROR:
+                has_error = True
+        if has_error:
             continue
         
         langs = args.lang or sus_file.settings.get("output", None)
@@ -77,7 +83,7 @@ def main():
                 
             try:
                 sus_file.write_output(lang, path.join(output, lang))
-            except exceptions.SusOutputError as ex:
+            except exceptions.OutputError as ex:
                 log.error(str(ex))
                 continue
 

@@ -4,13 +4,13 @@ from colorama.ansi import Fore
 import lark
 from lark.exceptions import UnexpectedInput
 from os import path, makedirs
-from .exceptions import SusOutputError, SusSourceError
 from importlib import import_module
 from math import ceil
 
 from .things import *
 from . import log
 from . import linker
+from .exceptions import DiagLevel, Diagnostic, OutputError, SearchError, SourceError
 
 KNOWN_SETTINGS = ["output", "html_topbar_logo", "html_topbar_title"]
 
@@ -18,7 +18,31 @@ KNOWN_SETTINGS = ["output", "html_topbar_logo", "html_topbar_title"]
 with open(path.join(path.dirname(__file__), "sus.lark")) as f:
     lark_parser = lark.Lark(f.read(), parser="lalr")
 
-class SusFile():
+def token_to_str(token: str):
+    return {
+        "LPAR": "'('", "RPAR": "')'",
+        "LBRACE": "'{'", "RBRACE": "'}'",
+        "LSQB": "'['", "RSQB": "']'",
+        "DOCSTRING": "'@>'",
+        "COLON": "':'",
+        "SEMICOLON": "';'",
+        "COMMA": "','",
+        "PLUS": "'+'",
+
+        "TYPE_IDENTIFIER": "name",
+        "ROOT_IDENTIFIER": "name",
+        "METHOD_IDENTIFIER": "name",
+        "VALIDATOR_IDENTIFIER": "validator",
+        "NUMBER": "number",
+        "SIGNED_NUMBER": "signed_number",
+        "REGEX": "regex",
+        "RANGE": "range",
+        "PARAMETER": "parameter",
+        "VALUE": "value",
+    # if none matched, turn TOKEN into 'token'
+    }.get(token, "'" + token.lower() + "'")
+
+class File():
     def __init__(self, parent=None):
         self.parent = parent
         self.settings = {}
@@ -41,8 +65,7 @@ class SusFile():
 
         log.verbose(f"Loaded file: {Fore.WHITE}{self.path}{Fore.LIGHTBLACK_EX} {'(root)' if not self.parent else ''}")
 
-
-    def resolve_source(self, p, line, col):
+    def resolve_source(self, p):
         targets = [
             p,
             path.join(path.dirname(self.path), p), # next to the current file
@@ -57,30 +80,44 @@ class SusFile():
             except FileNotFoundError: pass
 
         locations = '\n'.join(targets)
-        raise SusSourceError([SusLocation(self, line, col, len(p))],
-            f"Couldn't find '{p}' in any of the following locations:\n{locations}")
+        raise SearchError(f"Couldn't find or open '{p}' in any of the following locations:\n{locations}")
 
-    def parse(self):
+    def parse(self) -> Tuple[list[SusThing], list[Diagnostic]]:
         log.verbose(f"Parsing {Fore.WHITE}{self.path}")
+        diag = []
 
         try:
             self.tree = lark_parser.parse(self.source)
             log.verbose(f"AST constructed")
         except UnexpectedInput as e:
             token = e.token.value.split(' ')[0]
-            expected = ', '.join(e.expected)
-            error_text = f"Unexpected input. Expected one of: {expected}"
+            expected = ', '.join(token_to_str(t) for t in e.expected)
+            error_text = f"Unexpected input. Expected{' one of:' if len(e.expected) > 1 else ''} {expected}"
             dur = len(token)
 
-            raise SusSourceError([SusLocation(self, e.line, e.column, dur)], error_text)
+            if token == "":
+                # empty token = EOF
+                line = self.source.split('\n')[e.line - 1]
+                location = Location(self, e.line, len(line) + 1, 0)
+            else:
+                location = Location(self, e.line, e.column, dur)
+
+            # parsing can't continue any further, just return
+            return [], [Diagnostic([location], DiagLevel.ERROR, error_text)]
 
         # deconstruct the syntax tree
         for thing in self.tree.children:
             if thing.data == "inclusion":
                 name = thing.children[0]
                 log.verbose(f"Encountered inclusion:{Fore.LIGHTBLACK_EX} path={Fore.WHITE}{name}")
-                source = self.resolve_source(name.value, name.line, name.column)
-                dependency = SusFile(self)
+                # find dependency
+                try:
+                    source = self.resolve_source(name.value)
+                except SearchError as ex:
+                    return [], [Diagnostic([Location(self, name.line, name.column, len(name))],
+                        DiagLevel.ERROR, ex.message)]
+                # load it
+                dependency = File(self)
                 dependency.load_from_file(source)
                 self.dependencies.append(dependency)
 
@@ -89,7 +126,7 @@ class SusFile():
                 value = thing.children[1]
                 log.verbose(f"Encountered setting:{Fore.LIGHTBLACK_EX} name={Fore.WHITE}{name}{Fore.LIGHTBLACK_EX} value={Fore.WHITE}{value}")
                 if name.value not in KNOWN_SETTINGS:
-                    SusSourceError([SusLocation(self, name.line, name.column, len(name))], "Unknown setting").print_warn()
+                    diag.append(Diagnostic([Location(self, name.line, name.column, len(name))], DiagLevel.WARN, "Unknown setting"))
                 self.settings[name.value] = value.value
 
             else:
@@ -99,17 +136,8 @@ class SusFile():
                 thing = convert_ast(thing, self)
                 log.verbose(f"Converted AST subtree: {Fore.WHITE}{log.highlight_thing(thing)}")
                 self.things.append(thing)
-                # generate optional field select bitfields and methods for entities
+                # generate standard methods for entities
                 if isinstance(thing, SusEntity):
-                    opt_members = [SusEnumMember(f.location, None, f.name, f.optional) for f in thing.fields if f.optional != None]
-                    if len(opt_members) != 0:
-                        max_value = max([m.value for m in opt_members])
-                        bitfield = SusBitfield(thing.location, None, thing.name + "FieldSelect", ceil((max_value + 1) / 8), opt_members)
-                        self.things.append(bitfield)
-                        log.verbose(f"Generated optional field select bitfield: {Fore.WHITE}{log.highlight_thing(bitfield)}")
-                    else:
-                        log.verbose("No optional fields, not generating a field select bitfield")
-                    # add default methods
                     thing.methods.append(SusMethod(
                         thing.location,
                         f"Gets {thing.name} by ID",
@@ -138,16 +166,20 @@ class SusFile():
         # parse dependencies
         things = self.things
         for dep in self.dependencies:
-            things += dep.parse()
+            things += dep.parse()[0]
 
         # run linker
+        diag = []
         if self.parent == None:
-            things = linker.run(things)
+            things, diag = linker.run(things)
 
         self.things = things
-        return things
+        return things, diag
 
     def write_output(self, lang, target_dir):
+        if not self.things:
+            raise OutputError("No data to write. Call parse() first")
+
         try:
             module = import_module(".output." + lang, package=__package__)
             target_dir = path.abspath(target_dir)
@@ -162,4 +194,4 @@ class SusFile():
             module.write_output(self, target_dir)
         except ImportError as ex:
             log.verbose(ex)
-            raise SusOutputError(f"No output package for language '{lang}' or it is broken")
+            raise OutputError(f"No output package for language '{lang}' or it is broken")

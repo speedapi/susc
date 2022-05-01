@@ -52,3 +52,23 @@ Print file with syntax highlighting:
 ```
 $ susc -p source.sus
 ```
+
+# Programmatic usage
+```python
+from susc import File
+
+file = SusFile()
+# load file:
+file.load_from_file("/path/to/file.sus")
+# or
+file.load_from_file(open("/path/to/file.sus"))
+# or
+file.load_from_text("compound Test { a: Str; b: Str; }")
+
+things, diagnostics = file.parse()
+print(things)
+print(diagnostics)
+
+language = "ts"
+file.write_output(language, "/path/to/output/dir")
+```
