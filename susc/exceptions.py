@@ -15,6 +15,8 @@ class Location():
     dur: int
     def __repr__(self):
         return f"{basename(self.file.path)}:{self.line}:{self.col}({self.dur})"
+    def __hash__(self) -> int:
+        return hash(self.file.source) + self.line + self.col + self.dur
 
 class DiagLevel(Enum):
     ERROR = 0

@@ -12,18 +12,21 @@ def validate_fields(identifiers: List[str], field_sets: List[List[SusField]]) ->
         for f1 in fields:
             # optional values mod 256
             if f1.optional != None and f1.optional >= 256:
-                diag += Diagnostic([f1.location], DiagLevel.WARN, f"Optional value '{f1.optional}' will be taken mod 256 ('{f1.optional % 256}')")
+                diag.append(Diagnostic([f1.location], DiagLevel.WARN,
+                    f"Optional value '{f1.optional}' will be taken mod 256 ('{f1.optional % 256}')"))
                 f1.optional %= 256
 
             # the fields within one set shouldn't have matching names
             equal = [f2 for f2 in fields if f2.name == f1.name]
             if len(equal) > 1:
-                diag.append(Diagnostic([f.location for f in equal], DiagLevel.ERROR, f"Multiple fields with matching names '{f1.name}'"))
+                diag.append(Diagnostic([f.location for f in equal], DiagLevel.ERROR,
+                    f"Multiple fields with matching names '{f1.name}'"))
             
             # or values
             equal = [f2 for f2 in fields if f2.optional == f1.optional and f1.optional != None]
             if len(equal) > 1:
-                diag.append(Diagnostic([f.location for f in equal], DiagLevel.ERROR, f"Multiple fields with matching opt() values '{f1.name}'"))
+                diag.append(Diagnostic([f.location for f in equal], DiagLevel.ERROR,
+                    f"Multiple fields with matching opt() values '{f1.optional}'"))
 
             # validate the type
             type_err = f1.type_.find_errors(identifiers)
@@ -32,7 +35,7 @@ def validate_fields(identifiers: List[str], field_sets: List[List[SusField]]) ->
 
     return diag
 
-def combine(things: List[SusThing]) -> List[SusThing]:
+def combine(things: List[SusThing]) -> Tuple[list[SusThing], list[Diagnostic]]:
     log.verbose(f"Combining {len(things)} total definitions")
     diag = []
     ignore, out = [], []
@@ -45,32 +48,32 @@ def combine(things: List[SusThing]) -> List[SusThing]:
         with_matching_name = [thing2 for thing2 in things if thing2.name == thing1.name]
 
         if len(with_matching_name) > 1:
-            # throw redefinition errors
+            # diagnose redefinitions
+            fine = True
             for thing2 in with_matching_name:
-                if type(thing1) is not type(thing2):
-                    diag.append(Diagnostic([t.location for t in with_matching_name], DiagLevel.ERROR,
-                        f"Multiple things of different types with matching name '{thing1.name}'"))
-                elif not isinstance(thing1, (SusEnum, SusBitfield)):
+                if not isinstance(thing1, (SusEnum, SusBitfield)):
                     diag.append(Diagnostic([t.location for t in with_matching_name], DiagLevel.ERROR,
                         f"Redefinition of '{thing1.name}' (only enums and bitfields can be combined)"))
+                    fine = False
 
-            # match sizes
-            if not all([t.size == thing1.size for t in with_matching_name]):
-                diag.append(Diagnostic([t.location for t in with_matching_name],
-                    DiagLevel.ERROR, "Can't combine things of different sizes"))
+            if fine:
+                # match sizes
+                if not all([t.size == thing1.size for t in with_matching_name]):
+                    diag.append(Diagnostic([t.location for t in with_matching_name],
+                        DiagLevel.ERROR, "Can't combine things of different sizes"))
 
-            # record members of enums and mitfields
-            opt_members = []
-            for t in with_matching_name:
-                opt_members += t.members
+                # record members of enums and mitfields
+                opt_members = []
+                for t in with_matching_name:
+                    opt_members += t.members
 
-            # finally, combine all members
-            constructor = SusEnum if isinstance(thing1, SusEnum) else SusBitfield
-            doc = (thing1.docstring or "") + "\n" + (thing2.docstring or "")
-            if doc == "\n": doc = None
-            new_thing = constructor(thing1.location, doc, thing1.name, thing1.size, opt_members)
-            out.append(new_thing)
-            log.verbose(f"{Fore.LIGHTBLACK_EX}Combined {constructor.__name__[3:].lower()} {Fore.WHITE}{thing1.name}{Fore.LIGHTBLACK_EX} members across {len(with_matching_name)} definitions: {Fore.WHITE}{new_thing}")
+                # finally, combine all members
+                constructor = SusEnum if isinstance(thing1, SusEnum) else SusBitfield
+                doc = (thing1.docstring or "") + "\n" + (thing2.docstring or "")
+                if doc == "\n": doc = None
+                new_thing = constructor(thing1.location, doc, thing1.name, thing1.size, opt_members)
+                out.append(new_thing)
+                log.verbose(f"{Fore.LIGHTBLACK_EX}Combined {constructor.__name__[3:].lower()} {Fore.WHITE}{thing1.name}{Fore.LIGHTBLACK_EX} members across {len(with_matching_name)} definitions: {Fore.WHITE}{new_thing}")
         else:
             out.append(thing1)
         ignore.append(thing1.name)
@@ -109,6 +112,8 @@ def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMetho
                 diag.append(Diagnostic([method.location], DiagLevel.WARN,
                     "No 'ErrorCode' enum defined. Include 'impostor.sus' or use a custom definition"))
                 continue
+            if len(method.errors) == 0:
+                continue
             error_names = [m.name for m in errors[0].members]
 
             for err in method.errors:
@@ -117,7 +122,7 @@ def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMetho
     
     return diag
 
-def validate_values(entities: List[SusEntity], method_sets: List[List[SusMethod]]) -> None:
+def validate_values(entities: List[SusEntity], method_sets: List[List[SusMethod]], confirmations: List[SusConfirmation]) -> None:
     log.verbose("Validating numeric values")
     diag = []
 
@@ -142,6 +147,12 @@ def validate_values(entities: List[SusEntity], method_sets: List[List[SusMethod]
             if len(matching) != 1:
                 diag.append(Diagnostic([t.location for t in matching], DiagLevel.ERROR,
                     f"Multiple methods with matching values '{method.value}'"))
+
+    for thing in confirmations:
+        matching = [t for t in confirmations if t.value == thing.value]
+        if len(matching) != 1:
+            diag.append(Diagnostic([t.location for t in matching], DiagLevel.ERROR,
+                f"Multiple confirmations with matching values '{thing.value}'"))
     
     return diag
 
@@ -178,7 +189,22 @@ def run(things: List[SusThing]) -> List[SusThing]:
     things, diag = combine(things)
     diag += validate_fields(identifiers, field_sets)
     diag += validate_method_meta(things, method_sets)
-    diag += validate_values(entities, method_sets)
+    diag += validate_values(entities, method_sets, confirmations)
     things = strip_docstrings(things)
-    
-    return things, diag
+
+    # sort by severity
+    diag = sorted(diag, key=lambda d: d.level.value)
+
+    # remove diagnostics in the same location
+    deduplicated = []
+    used_locs = set()
+    for d in diag:
+        for loc in d.locations:
+            has_duplicates = True
+            if loc not in used_locs:
+                has_duplicates = False
+                used_locs.add(loc)
+        if not has_duplicates:
+            deduplicated.append(d)
+
+    return things, deduplicated

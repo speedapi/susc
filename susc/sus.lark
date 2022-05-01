@@ -25,8 +25,8 @@ ROOT_IDENTIFIER      : /[A-Z][A-Za-z]*/
 FIELD_IDENTIFIER     : /[a-z][a-z_]*/
 METHOD_IDENTIFIER    : /[a-z][a-z_]*/
 enum_member          : [DOCSTRING] FIELD_IDENTIFIER "(" NUMBER ")"
-VALIDATOR_IDENTIFIER : /[a-z][a-z_]+/
-TYPE_IDENTIFIER      : /[A-Z][A-Za-z]+/
+VALIDATOR_IDENTIFIER : /[a-z][a-z_]*/
+TYPE_IDENTIFIER      : /[A-Z][A-Za-z]*/
 
 value         : SIGNED_NUMBER | BOOL | STRING | list
 NUMBER        : /[0-9]+/
@@ -42,7 +42,7 @@ range   : SIGNED_NUMBER ".." SIGNED_NUMBER | SIGNED_NUMBER "+"
 TIMEOUT : NUMBER ("ms" | "s" | "m" | "h" | "d" | "mo" | "y")
 
 
-type            : TYPE_IDENTIFIER ["(" _sep{type_argument, ","} ")"] ["[" _sep{type_validator, ","}*"]"]
+type            : TYPE_IDENTIFIER ["(" _sep{type_argument, ","} ")"] ["[" _sep{type_validator, ","} "]"]
 type_argument   : type | NUMBER
 type_validator  : VALIDATOR_IDENTIFIER ":" validator_value
 validator_value : SIGNED_NUMBER | range | REGEX

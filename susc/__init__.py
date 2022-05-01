@@ -32,6 +32,7 @@ def token_to_str(token: str):
         "TYPE_IDENTIFIER": "name",
         "ROOT_IDENTIFIER": "name",
         "METHOD_IDENTIFIER": "name",
+        "FIELD_IDENTIFIER": "field",
         "VALIDATOR_IDENTIFIER": "validator",
         "NUMBER": "number",
         "SIGNED_NUMBER": "signed_number",
@@ -71,6 +72,7 @@ class File():
             path.join(path.dirname(self.path), p), # next to the current file
             path.join(path.dirname(__file__), "stdlib", p) # in the standard library
         ]
+        targets += [t + ".sus" for t in targets if not t.endswith(".sus")] # try with .sus extension
         targets = [path.abspath(t) for t in targets]
         targets = sorted(set(targets), key=lambda x: targets.index(x)) # remove duplicates keeping the order
         # try each one
@@ -102,8 +104,16 @@ class File():
             else:
                 location = Location(self, e.line, e.column, dur)
 
+            diag = Diagnostic([location], DiagLevel.ERROR, error_text)
+
+            # inform the user about our naming conventions :)
+            if len(e.expected.intersection({"TYPE_IDENTIFIER", "ROOT_IDENTIFIER"})):
+                diag.message += "\nHint: identifiers for things except methods, fields and members use PascalCase"
+            if len(e.expected.intersection({"FIELD_IDENTIFIER", "METHOD_IDENTIFIER", "VALIDATOR_IDENTIFIER"})):
+                diag.message += "\nHint: method, field, member and validator identifiers use snake_case"
+
             # parsing can't continue any further, just return
-            return [], [Diagnostic([location], DiagLevel.ERROR, error_text)]
+            return [], [diag]
 
         # deconstruct the syntax tree
         for thing in self.tree.children:
@@ -115,7 +125,7 @@ class File():
                     source = self.resolve_source(name.value)
                 except SearchError as ex:
                     return [], [Diagnostic([Location(self, name.line, name.column, len(name))],
-                        DiagLevel.ERROR, ex.message)]
+                        DiagLevel.ERROR, ex.msg)]
                 # load it
                 dependency = File(self)
                 dependency.load_from_file(source)

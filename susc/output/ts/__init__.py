@@ -75,7 +75,7 @@ def type_to_amogus(type_: SusType, obj_types: Dict[str, str]) -> str:
         return f"new amogus.repr.{t_name}({type_.name})"
 
     name = type_.name
-    if name == "Int" and type_.args[0] > 6:
+    if name == "Int" and type_.args[0] > 4:
         name = "BigInteger"
 
     return f"new amogus.repr.{name}({', '.join([str(x) for x in type_.args] + [''])}{type_validators(type_)})"
