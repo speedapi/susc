@@ -19,9 +19,9 @@ class Location():
         return hash(self.file.source) + self.line + self.col + self.dur
 
 class DiagLevel(Enum):
-    ERROR = 0
-    WARN = 1
-    INFO = 2
+    ERROR = 1
+    WARN = 2
+    INFO = 3
 
 @dataclass
 class Diagnostic():

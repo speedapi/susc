@@ -81,17 +81,6 @@ class SusType(SusTypeBase):
         elif self.name not in identifiers:
             return "Unknown type"
 
-    def validate_value(self, val):
-        if val is None:
-            return True
-        if self.name == "Str" and isinstance(val, str):
-            return True
-        if self.name == "Int" and isinstance(val, int):
-            return True
-        if self.name == "List" and isinstance(val, list) and all([self.args[0].validate_value(item) for item in val]):
-            return True
-        return False
-
 @dataclass
 class SusCompoundMember(SusThing):
     name: str
@@ -128,7 +117,6 @@ class SusField(SusThing):
     name: str
     type_: SusType
     optional: int
-    default: Any
 
 @dataclass
 class SusMethod(SusThing):
@@ -251,18 +239,10 @@ def convert_param(ast, file):
     name = ast.children[1]
     opt = convert_opt(ast.children[2])
     type_ = convert_type(ast.children[3], file)
-    default = convert_value(ast.children[4])
 
     location = Location(file, name.line, name.column, len(name.value))
 
-    if default is not None and opt is None:
-        raise SourceError([location], "Default value specified yet the field isn't optional")
-
-    if default is not None and not type_.validate_value(default):
-        default = convert_value(default)
-        raise SourceError([location], "Invalid default value for this type")
-
-    return SusField(location, doc, name.value, type_, opt, default)
+    return SusField(location, doc, name.value, type_, opt)
 
 def convert_timeout(val):
     num, mul = re.match("(\d+)(\w+)", val).groups()
@@ -333,7 +313,7 @@ def convert_ast(ast, file):
                 type_ = convert_type(directive.children[3], file)
                 location = Location(file, identifier.line, identifier.column, len(identifier.value))
 
-                fields.append(SusField(location, doc, identifier.value, type_, opt, None))
+                fields.append(SusField(location, doc, identifier.value, type_, opt))
 
             if directive.data.endswith("method"):
                 methods.append(convert_method(directive, file))
@@ -371,7 +351,7 @@ def convert_ast(ast, file):
             type_ = convert_type(directive.children[3], file)
             location = Location(file, identifier.line, identifier.column, len(identifier.value))
 
-            fields.append(SusField(location, doc, identifier.value, type_, opt, None))
+            fields.append(SusField(location, doc, identifier.value, type_, opt))
 
         return SusCompound(Location(file, name.line, name.column, len(name.value)), doc,
             name.value, fields)

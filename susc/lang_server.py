@@ -1,7 +1,7 @@
 from xmlrpc.client import Boolean
 from pygls.server import LanguageServer
 from pygls.lsp.methods import COMPLETION, TEXT_DOCUMENT_DID_CHANGE
-from pygls.lsp.types import DidChangeTextDocumentParams, Diagnostic, Range, Position
+from pygls.lsp.types import DidChangeTextDocumentParams, Diagnostic, Range, Position, DiagnosticSeverity
 
 from . import log
 from . import File
@@ -25,16 +25,15 @@ def did_change(ls: LanguageServer, params: DidChangeTextDocumentParams):
             if location.file.path != "<from source>":
                 continue
 
-            diag = Diagnostic(
+            diag_list.append(Diagnostic(
                 range=Range(
                     start=Position(line=location.line - 1, character=location.col - 1),
                     end=Position(line=location.line - 1, character=location.col - 1 + location.dur)
                 ),
-                message=diag.locations,
+                message=diag.message,
                 source="susc",
-                severity=diag.level
-            )
-            diag_list.append(diag)
+                severity=DiagnosticSeverity(diag.level.value)
+            ))
         
     log.verbose("Pushing diagnostics")
     ls.publish_diagnostics(params.text_document.uri, diag_list)
