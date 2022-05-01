@@ -1,13 +1,14 @@
+from io import TextIOWrapper
 from shutil import rmtree
 from colorama.ansi import Fore
 import lark
-from os import path, makedirs
-
 from lark.exceptions import UnexpectedInput
-from .things import *
+from os import path, makedirs
 from .exceptions import SusOutputError, SusSourceError
 from importlib import import_module
 from math import ceil
+
+from .things import *
 from . import log
 from . import linker
 
@@ -18,12 +19,17 @@ with open(path.join(path.dirname(__file__), "sus.lark")) as f:
     lark_parser = lark.Lark(f.read(), parser="lalr")
 
 class SusFile():
-    def __init__(self, source, parent=None):
+    def __init__(self, parent=None):
         self.parent = parent
         self.settings = {}
         self.dependencies = []
         self.things = []
 
+    def load_from_text(self, source):
+        self.source = source
+        self.path = "<from source>"
+
+    def load_from_file(self, source: str|TextIOWrapper):
         # read the file
         if isinstance(source, str):
             self.path = source
@@ -33,7 +39,7 @@ class SusFile():
         self.source = source.read()
         source.close()
 
-        log.verbose(f"Loaded {Fore.WHITE}{self.path}{Fore.LIGHTBLACK_EX} {'(root)' if parent == None else ''}")
+        log.verbose(f"Loaded file: {Fore.WHITE}{self.path}{Fore.LIGHTBLACK_EX} {'(root)' if not self.parent else ''}")
 
 
     def resolve_source(self, p, line, col):
@@ -74,7 +80,9 @@ class SusFile():
                 name = thing.children[0]
                 log.verbose(f"Encountered inclusion:{Fore.LIGHTBLACK_EX} path={Fore.WHITE}{name}")
                 source = self.resolve_source(name.value, name.line, name.column)
-                self.dependencies.append(SusFile(source, self))
+                dependency = SusFile(self)
+                dependency.load_from_file(source)
+                self.dependencies.append(dependency)
 
             elif thing.data == "setting":
                 name = thing.children[0]

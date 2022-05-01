@@ -4,3 +4,4 @@ markdown
 watchgod
 nanoid
 wheel
+pygls

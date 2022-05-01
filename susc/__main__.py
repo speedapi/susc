@@ -1,26 +1,27 @@
 import argparse
-import susc, sys
 from os import path
 from colorama import Fore
-
-from susc import exceptions
-from . import log
 from time import time
-from .watch import gen_ts
+
+from . import SusFile
+from . import exceptions
+from . import log
+from . import lang_server
 
 def highlight(file):
     for line in file.readlines():
-        print(susc.log.highlight_syntax(line), end='')
+        print(log.highlight_syntax(line), end='')
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("source", help="file(s) to compile", type=argparse.FileType(mode="r", encoding="utf8"), nargs="+")
+    parser.add_argument("source", help="file(s) to compile", type=argparse.FileType(mode="r", encoding="utf8"), nargs="*")
     parser.add_argument("-o", "--output", help="override output dir")
     parser.add_argument("-l", "--lang", help="override `set output` directive")
     parser.add_argument("-v", "--verbose", help="verbose logging", action="store_true")
     parser.add_argument("-p", "--highlight", help="print contents of a SUS file with highlighting", action="store_true")
-    parser.add_argument("-t", "--gen-ts", help="watch source files and generate .d.ts files in background", action="store_true")
-    parser.add_argument("-s", "--single-line-errors", help="output errors in a parsable format", action="store_true")
+    parser.add_argument("-e", "--single-line-errors", help="output errors in a parsable format", action="store_true")
+    parser.add_argument("-s", "--language-server", help="run as a language server", action="store_true")
+    parser.add_argument("-i", "--ls-stdio", help="run LS in stdio mode", action="store_true")
     args = parser.parse_args()
 
     exceptions.SINGLE_LINE_ERRORS = args.single_line_errors
@@ -28,17 +29,26 @@ def main():
     if log.VERBOSE:
         log.verbose("Verbose mode enabled")
 
-    if args.highlight:
-        highlight(args.source[0])
+    if args.language_server:
+        lang_server.start(args.ls_stdio)
+        return
+    if args.ls_stdio:
+        log.error("--ls-stdio can only be used with --language-server")
         return
 
-    if args.gen_ts:
-        gen_ts(args.source[0])
+    if args.highlight:
+        for file in args.source:
+            log.info(file.name)
+            highlight(file)
         return
 
     if len(args.source) > 1 and args.output is not None:
         log.warn(f"More than one project specified. {Fore.GREEN}'-o {args.output}'{Fore.WHITE} will be ignored")
     
+    if len(args.source) == 0:
+        log.error("No source files specified")
+        return
+
     successful = 0
     global_start = time()
     for i, source in enumerate(args.source):
@@ -46,10 +56,11 @@ def main():
         if len(args.source) > 1:
             log.info(f"Compiling project {Fore.GREEN}'{source.name}'{Fore.WHITE} ({Fore.GREEN}{i + 1}/{len(args.source)}{Fore.WHITE})")
 
-        sus_file = susc.SusFile(source)
+        sus_file = SusFile()
+        sus_file.load_from_file(source)
         try:
             sus_file.parse()
-        except susc.exceptions.SusError as ex:
+        except exceptions.SusError as ex:
             log.error(str(ex))
             continue
         
@@ -66,7 +77,7 @@ def main():
                 
             try:
                 sus_file.write_output(lang, path.join(output, lang))
-            except susc.exceptions.SusOutputError as ex:
+            except exceptions.SusOutputError as ex:
                 log.error(str(ex))
                 continue
 

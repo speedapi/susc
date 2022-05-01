@@ -173,6 +173,7 @@ def convert_docstring(doc: str) -> str:
 def convert_ebf_members(ast, file): # Enum or Bitfield
     list = []
     for member in ast:
+        if not member: continue
         doc = convert_docstring(member.children[0])
         name = member.children[1]
         value = int(member.children[2].value)
@@ -287,6 +288,7 @@ def convert_method(ast, file):
 
     params, returns, errors, confirmations, states, rate_limit = [], [], [], [], [], None
     for directive in ast.children[3:]:
+        if not directive: continue
         if directive.data == "method_param":
             params.append(convert_param(directive, file))
         elif directive.data == "returns":
@@ -349,8 +351,8 @@ def convert_ast(ast, file):
         req = ast.children[3]
         resp = ast.children[4]
 
-        req = [convert_param(par, file) for par in req.children]
-        resp = [convert_param(par, file) for par in resp.children]
+        req = [convert_param(par, file) for par in req.children if par]
+        resp = [convert_param(par, file) for par in resp.children if par]
 
         return SusConfirmation(SusLocation(file, name.line, name.column, len(name)), doc, name.value, value,
             req, resp)
@@ -362,6 +364,7 @@ def convert_ast(ast, file):
         directives = ast.children[2:]
         fields, methods = [], []
         for directive in directives:
+            if not directive: continue
             doc = convert_docstring(directive.children[0])
             identifier = directive.children[1]
             opt = convert_opt(directive.children[2])

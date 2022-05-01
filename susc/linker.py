@@ -109,7 +109,7 @@ def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMetho
                     raise SusSourceError([method.location], f"Undefined confirmation '{conf}'")
 
 def validate_values(entities: List[SusEntity], method_sets: List[List[SusMethod]]) -> None:
-    log.verbose("Validating numberic values")
+    log.verbose("Validating numeric values")
 
     for thing in entities:
         matching = [t for t in entities if t.value == thing.value]

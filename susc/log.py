@@ -1,9 +1,9 @@
-from os import get_terminal_size
 from colorama import Fore, Back
 from sys import stderr
 import re, lark
 
 VERBOSE = False
+ALL_STDERR = False
 SUS_COLORS = {
     "(\".*\")|('.*')": Fore.LIGHTGREEN_EX,
     "/.+/[ims]{0,3}": Fore.LIGHTCYAN_EX,
@@ -16,6 +16,8 @@ SUS_COLORS = {
 }
 
 def log(back, fore, prefix, text, file):
+    if ALL_STDERR:
+        file = stderr
     print(f"{back}{fore} {prefix} {Back.RESET}{Fore.WHITE} {text}", file=file)
 
 def error(text):

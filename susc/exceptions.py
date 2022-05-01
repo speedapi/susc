@@ -19,7 +19,7 @@ class SusError(Exception):
 
 SINGLE_LINE_ERRORS = False
 class SusSourceError(SusError):
-    def __init__(self, locations, text):
+    def __init__(self, locations: list[SusLocation], text):
         self.locations = locations
         self.text = text
         self.accent = Fore.RED

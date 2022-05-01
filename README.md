@@ -7,21 +7,48 @@
 ![PRs and issues](https://img.shields.io/badge/PRs%20and%20issues-welcome-brightgreen)
 
 # SUS compiler
-This repository contains the compiler for the SUS description language. Install it with:
+This repository contains the compiler and language server for the SUS description language. Install it with:
 ```
 pip3 install susc
 ```
 
 # Usage
+Help:
 ```
-susc --help
+$ susc --help
 # OR
-python3 -m susc --help
+$ python3 -m susc --help
 ```
 
-## Usage (`.ts` file generation)
+## Compiler
+Compile file(s):
 ```
-susc --gen-ts [file]
+$ susc source1.sus source2.sus
 ```
-This command will make susc watch `[file]` and its dependencies and generate `.ts` for the root one. Extremely useful in combination with `webpack` and `sus-loader`.\
-**NOTE**: consider adding this file to your VCS ignore list (e.g. `.gitignore`)
+
+Compile file, override output dir:
+```
+$ susc -o output source.sus
+```
+
+Compile file, override output language:
+```
+$ susc -l ts source.sus
+```
+
+## Language server
+Start language server:
+```
+$ susc -s
+```
+
+Start language server in stdio mode:
+```
+$ susc -si
+```
+
+## Misc
+Print file with syntax highlighting:
+```
+$ susc -p source.sus
+```
