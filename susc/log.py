@@ -28,9 +28,10 @@ def info(text):
     log(Back.BLUE, Fore.BLACK, "INFO", text, None)
 def done(text):
     log(Back.GREEN, Fore.BLACK, "DONE", text, None)
-def verbose(text):
+def verbose(text, label=None):
+    label = "DEBUG" + (":" + label if label else "")
     if VERBOSE:
-        log(Back.LIGHTBLACK_EX, Fore.WHITE, "DEBUG", text, None)
+        log(Back.LIGHTBLACK_EX, Fore.WHITE, label, text, None)
 
 def highlight_syntax(line, colors=SUS_COLORS):
     if colors is SUS_COLORS:

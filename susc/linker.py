@@ -5,7 +5,7 @@ from .exceptions import *
 MAGIC_IDENTIFIERS = ["Entity"]
 
 def validate_fields(identifiers: List[str], field_sets: List[List[SusField]]) -> None:
-    log.verbose("Validating fields")
+    log.verbose("Validating fields", "linker")
     diag = []
 
     for fields in field_sets:
@@ -36,7 +36,7 @@ def validate_fields(identifiers: List[str], field_sets: List[List[SusField]]) ->
     return diag
 
 def combine(things: List[SusThing]) -> Tuple[list[SusThing], list[Diagnostic]]:
-    log.verbose(f"Combining {len(things)} total definitions")
+    log.verbose(f"Combining {len(things)} total definitions", "linker")
     diag = []
     ignore, out = [], []
 
@@ -73,7 +73,7 @@ def combine(things: List[SusThing]) -> Tuple[list[SusThing], list[Diagnostic]]:
                 if doc == "\n": doc = None
                 new_thing = constructor(thing1.location, doc, thing1.name, thing1.size, opt_members)
                 out.append(new_thing)
-                log.verbose(f"{Fore.LIGHTBLACK_EX}Combined {constructor.__name__[3:].lower()} {Fore.WHITE}{thing1.name}{Fore.LIGHTBLACK_EX} members across {len(with_matching_name)} definitions: {Fore.WHITE}{new_thing}")
+                log.verbose(f"{Fore.LIGHTBLACK_EX}Combined {constructor.__name__[3:].lower()} {Fore.WHITE}{thing1.name}{Fore.LIGHTBLACK_EX} members across {len(with_matching_name)} definitions: {Fore.WHITE}{new_thing}", "linker")
         else:
             out.append(thing1)
         ignore.append(thing1.name)
@@ -92,11 +92,11 @@ def combine(things: List[SusThing]) -> Tuple[list[SusThing], list[Diagnostic]]:
         if isinstance(thing1, SusConfirmation) and thing1.value > 15:
             diag.append(Diagnostic([thing1.location], DiagLevel.WARN, f"Value '{thing1.value}' overflow (max '15')"))
 
-    log.verbose(f"Combined {len(things)} definitions into {len(out)} things")
+    log.verbose(f"Combined {len(things)} definitions into {len(out)} things", "linker")
     return out, diag
 
 def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMethod]]) -> None:
-    log.verbose("Validating method metdata")
+    log.verbose("Validating method metdata", "linker")
     diag = []
 
     errors = [t for t in things if isinstance(t, SusEnum) and t.name == "ErrorCode"]
@@ -123,7 +123,7 @@ def validate_method_meta(things: List[SusThing], method_sets: List[List[SusMetho
     return diag
 
 def validate_values(entities: List[SusEntity], method_sets: List[List[SusMethod]], confirmations: List[SusConfirmation]) -> None:
-    log.verbose("Validating numeric values")
+    log.verbose("Validating numeric values", "linker")
     diag = []
 
     for thing in entities:
@@ -164,7 +164,7 @@ def strip_docstrings(things: List[SusThing]) -> List[SusThing]:
     return things
 
 def run(things: List[SusThing]) -> List[SusThing]:
-    log.verbose("Running linker")
+    log.verbose("Running linker", "linker")
 
     # get all identifiers that can be referenced
     identifiers = [t.name for t in things if not isinstance(t, SusMethod)] + MAGIC_IDENTIFIERS
