@@ -7,7 +7,7 @@ from . import log
 from . import File
 
 class Explanation:
-    source: str
+    stage: str
     level: DiagLevel
     explanation: str
 
@@ -16,11 +16,11 @@ class Explanation:
 
 EXPLANATIONS = {
     #
-    # PARSER
+    # PARSING
     #
     
     1: Explanation(
-        source="parser",
+        stage="parsing",
         level=DiagLevel.ERROR,
         explanation="""
         A generic syntax error in the source code that the parser was not able
@@ -39,7 +39,7 @@ EXPLANATIONS = {
         """
     ),
     2: Explanation(
-        source="parser",
+        stage="parsing",
         level=DiagLevel.ERROR,
         explanation="""
         A naming convention violation was detected.
@@ -59,7 +59,7 @@ EXPLANATIONS = {
         """
     ),
     3: Explanation(
-        source="parser",
+        stage="parsing",
         level=DiagLevel.ERROR,
         explanation="""
         The item was supposed to declare a numeric value or size parameter.
@@ -82,7 +82,7 @@ EXPLANATIONS = {
         """
     ),
     4: Explanation(
-        source="parser",
+        stage="parsing",
         level=DiagLevel.ERROR,
         explanation="""
         The name was omitted.
@@ -99,11 +99,11 @@ EXPLANATIONS = {
     ),
 
     #
-    # RESOLVER
+    # RESOLUTION
     #
 
     5: Explanation(
-        source="resolver",
+        stage="resolution",
         level=DiagLevel.ERROR,
         explanation="""
         The compiler was not able to find a file referenced in "include".
@@ -114,7 +114,7 @@ EXPLANATIONS = {
         """
     ),
     6: Explanation(
-        source="resolver",
+        stage="resolution",
         level=DiagLevel.WARN,
         explanation="""
         A file was included multiple times.
@@ -131,7 +131,7 @@ EXPLANATIONS = {
         """
     ),
     7: Explanation(
-        source="resolver",
+        stage="resolution",
         level=DiagLevel.WARN,
         explanation="""
         The compiler encountered a setting that it does not know.
@@ -144,11 +144,11 @@ EXPLANATIONS = {
     ),
 
     #
-    # LINKER
+    # VALIDATION
     #
 
     8: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.WARN,
         explanation="""
         A numeric value was taken modulo its max possible value.
@@ -160,8 +160,8 @@ EXPLANATIONS = {
           - In `bitfield(x) Name { member(y) }`, y must be <= x*8 - 1
 
         This numeric value is used to distinguish between different things when
-        they're sent over the wire. We don't use names for that because they're
-        too large.
+        they're sent over the wire. We're not using names for that because
+        they're too large.
 
         ```
         compound Example {
@@ -178,7 +178,7 @@ EXPLANATIONS = {
         """
     ),
     9: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         There were multiple fields with the same name in the same structure.
@@ -193,7 +193,7 @@ EXPLANATIONS = {
         """
     ),
     10: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         There were multiple optional fields with the same opt() value in the
@@ -220,11 +220,15 @@ EXPLANATIONS = {
         """
     ),
     11: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
-        A type instantiation error was detected. Mismatches in the number and/or
-        types of parameters and validators fall in this category.
+        A type instantiation error was detected. Possible causes:
+          - The type is unknown
+          - An unexpected number of arguments was provided
+          - The arguments were of wrong types
+          - A validator can't be applied to that type
+          - A validator argument is of the wrong type 
 
         ```
         compound Example {
@@ -233,15 +237,19 @@ EXPLANATIONS = {
             c: Int(Bool);
             d: Int(1)[len: 3+];
 
+
             e: Str(1);
-            f: Str[len: /regexp?/i];
+            f: Str[len: /rege*xp?/i];
             g: Str[match: 10..20];
+
+
+            h: NonExistent;
         }
         ```
         """
     ),
     12: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         AMOGUS provides a mechanism to combine declarations of `enum`s and
@@ -274,7 +282,7 @@ EXPLANATIONS = {
         """
     ),
     13: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         AMOGUS provides a mechanism to combine declarations of `enum`s and
@@ -303,7 +311,7 @@ EXPLANATIONS = {
         """
     ),
     14: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         An undefined confirmation was referenced.
@@ -316,7 +324,7 @@ EXPLANATIONS = {
         """
     ),
     15: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.WARN,
         explanation="""
         A method tried to reference an error code, but the `ErrorCode` enum was
@@ -335,7 +343,7 @@ EXPLANATIONS = {
         """
     ),
     16: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         A method tried to reference an error code, and the `ErrorCode` enum was
@@ -350,7 +358,7 @@ EXPLANATIONS = {
         """
     ),
     17: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
         Multiple things with matching numeric values were declared. These values
@@ -370,7 +378,7 @@ EXPLANATIONS = {
         """
     ),
     18: Explanation(
-        source="linker",
+        stage="validation",
         level=DiagLevel.WARN,
         explanation="""
         The entity did not have an `id` field or its type was not `Int(8)`.
@@ -427,11 +435,14 @@ def compile_code_block(code: str, match_code: int = -1) -> str:
         result += f" {Fore.LIGHTBLACK_EX}{str(n + 1).rjust(n_len)} | {Fore.WHITE}{highlighted}\n"
         if n in squiggles:
             color, message, offs, dur = squiggles[n]
-            # squiggles and error message
+            # squiggles
             squiggle = " " * offs + "~" * dur
-            result += f" {Fore.LIGHTBLACK_EX}{' ' * n_len} | {color}{squiggle}\n"
-            for m_line in message.split("\n"):
-                result += f" {Fore.LIGHTBLACK_EX}{' ' * n_len} | {color}{m_line}\n"
+            m_lines = message.split("\n")
+            # squiggles + first line of error message
+            result += f" {Fore.LIGHTBLACK_EX}{' ' * n_len} | {color}{squiggle} {m_lines[0]}\n"
+            # rest of error message
+            for m_line in m_lines[1:]:
+                result += f" {Fore.LIGHTBLACK_EX}{' ' * n_len} |  {color}{' ' * (offs + dur)}{m_line}\n"
 
     return result + f"{Fore.WHITE}\n"
 
@@ -443,14 +454,14 @@ def explain(n: int):
 
     # print headers
 
-    print(f"{Back.LIGHTBLACK_EX}{Fore.WHITE}   CODE {Back.WHITE}{Fore.BLACK} {str(n).rjust(4, '0')} {Back.RESET}")
+    print(f"{Back.LIGHTBLACK_EX}{Fore.WHITE}  CODE {Back.WHITE}{Fore.BLACK} {str(n).rjust(4, '0')} {Back.RESET}")
 
     level = ["error", "warning", "info"][exp.level.value - 1]
     level_color = [Back.RED, Back.YELLOW, Back.BLUE][exp.level.value - 1]
-    print(f"{Back.LIGHTBLACK_EX}{Fore.WHITE}  LEVEL {level_color}{Fore.BLACK} {level} {Back.RESET}")
+    print(f"{Back.LIGHTBLACK_EX}{Fore.WHITE} LEVEL {level_color}{Fore.BLACK} {level} {Back.RESET}")
 
-    source_color = {"linker": Back.BLUE, "parser": Back.GREEN, "resolver": Back.YELLOW}[exp.source]
-    print(f"{Back.LIGHTBLACK_EX}{Fore.WHITE} SOURCE {source_color}{Fore.BLACK} {exp.source} {Back.RESET}")
+    stage_color = {"validation": Back.MAGENTA, "parsing": Back.GREEN, "resolution": Back.YELLOW}[exp.stage]
+    print(f"{Back.LIGHTBLACK_EX}{Fore.WHITE} STAGE {stage_color}{Fore.BLACK} {exp.stage} {Back.RESET}")
 
     print(f"\n{Back.LIGHTBLACK_EX}{Fore.WHITE} EXPLANATION {Back.RESET}:")
     

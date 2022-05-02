@@ -8,11 +8,11 @@ start : thing*
          | global_method | entity
 
 inclusion : "include" PATH
-PATH      : /[^ ].*/
+PATH      : /[^ {[*?\n]+/
 
 setting   : "set" PARAMETER VALUE
 PARAMETER : /[a-z](_|[a-z])+/
-VALUE     : /.+/
+VALUE     : /[^ {[*?\n]+/
 
 enum          : [DOCSTRING] "enum" "(" NUMBER ")" TYPE_IDENTIFIER "{" _sep{enum_member, ","} "}"
 bitfield      : [DOCSTRING] "bitfield" "(" NUMBER ")" TYPE_IDENTIFIER "{" _sep{enum_member, ","} "}"
