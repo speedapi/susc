@@ -34,6 +34,7 @@ class SusError(Exception):
     pass
 
 SINGLE_LINE_ERRORS = False
+RECOMMENDED_EXPLAIN = False
 class SourceError(SusError):
     def __init__(self, diag: Diagnostic):
         self.diag = diag
@@ -52,12 +53,15 @@ class SourceError(SusError):
         function(str(self))
 
     def __str__(self):
+        global SINGLE_LINE_ERRORS, RECOMMENDED_EXPLAIN
         if SINGLE_LINE_ERRORS:
             location = self.diag.locations[0]
             location = f"{location.file.path}:{location.line}:{location.col}"
             return f"{location}: {self.text}"
 
-        error = Fore.WHITE + ("" if len(self.diag.locations) in [0, 1] else "multiple locations: ")
+        code = str(self.diag.code).rjust(4, "0")
+        error = Fore.LIGHTBLACK_EX + f"(code {Fore.WHITE}{code}{Fore.LIGHTBLACK_EX}) "
+        error += Fore.WHITE + ("" if len(self.diag.locations) < 2 else "multiple locations: ")
 
         for loc in self.diag.locations:
             padding = " " * (len(str(loc.line)) + 4 + loc.col - 1)
@@ -77,8 +81,11 @@ class SourceError(SusError):
             {padding}{self.accent}{squiggly}
             """)
 
-        error += f"{self.accent}{self.diag.message}{Fore.RESET}\n"
-        return error.strip("\n")
+        error += f"{self.accent}{self.diag.message}\n"
+        if not RECOMMENDED_EXPLAIN:
+            error += f"Tip: try 'susc --explain {code}' to see an explanation"
+            RECOMMENDED_EXPLAIN = True
+        return error.strip("\n") + Fore.RESET
 
 class OutputError(SusError):
     def __init__(self, msg):

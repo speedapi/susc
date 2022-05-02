@@ -13,45 +13,26 @@ pip3 install susc
 ```
 
 # Usage
-Help:
+
+### Help
 ```
 $ susc --help
 # OR
 $ python3 -m susc --help
 ```
 
-## Compiler
-Compile file(s):
-```
-$ susc source1.sus source2.sus
-```
+### Compiler
+  - Compile file(s): `susc source1.sus source2.sus`
+  - Compile file, override output dir: `susc -o output source.sus`
+  - Compile file, override output language: `susc -l ts source.sus`
 
-Compile file, override output dir:
-```
-$ susc -o output source.sus
-```
+### Language server
+  - Start language server: `susc -s`
+  - Start language server in stdio mode: `susc -si`
 
-Compile file, override output language:
-```
-$ susc -l ts source.sus
-```
-
-## Language server
-Start language server:
-```
-$ susc -s
-```
-
-Start language server in stdio mode:
-```
-$ susc -si
-```
-
-## Misc
-Print file with syntax highlighting:
-```
-$ susc -p source.sus
-```
+### Misc
+  - Print file with syntax highlighting: `susc -p source.sus`
+  - Explain a diagnostic code: `susc -x 0010`
 
 # Programmatic usage
 ```python
