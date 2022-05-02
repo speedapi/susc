@@ -44,7 +44,7 @@ def recompile_file(ls: LanguageServer, doc: VersionedTextDocumentIdentifier):
                     end=Position(line=location.line - 1, character=location.col - 1 + location.dur)
                 ),
                 message=diag.message,
-                source="susc",
+                source=f"susc({str(diag.code).rjust(4, '0')})",
                 severity=DiagnosticSeverity(diag.level.value)
             ))
         

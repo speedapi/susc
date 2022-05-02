@@ -27,6 +27,7 @@ class DiagLevel(Enum):
 class Diagnostic():
     locations: list[Location]
     level: DiagLevel
+    code: int
     message: str
 
 class SusError(Exception):

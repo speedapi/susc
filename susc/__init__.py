@@ -147,14 +147,15 @@ class File():
         else:
             location = Location(self, e.line, e.column, dur)
 
-        diag = Diagnostic([location], DiagLevel.ERROR, error_text)
+        diag = Diagnostic([location], DiagLevel.ERROR, 1, error_text)
         self.diagnostics += [diag]
 
         # inform the user about our naming conventions :)
         # while trying to rename
         if "TYPE_IDENTIFIER" in e.expected and fullmatch(r"[a-zA-Z_]+", token):
             diag.message = "This identifier should use PascalCase"
-            tok.type = inter.pop()
+            diag.code = 2
+            tok.type = "TYPE_IDENTIFIER"
             tok.value = tok.value[0].upper() + tok.value[1:]
             log.verbose(f"Renamed '{token}' to '{tok.value}'", "corrector")
             feed(tok)
@@ -163,6 +164,7 @@ class File():
         inter = e.expected.intersection({"FIELD_IDENTIFIER", "METHOD_IDENTIFIER", "VALIDATOR_IDENTIFIER"})
         if len(inter) and fullmatch(r"[a-zA-Z_]+", token):
             diag.message = "This identifier should use snake_case"
+            diag.code = 2
             tok.type = inter.pop()
             tok.value = tok.value.lower()
             log.verbose(f"Renamed '{token}' to '{tok.value}'", "corrector")
@@ -195,6 +197,7 @@ class File():
         is_enum = isinstance(stack[-1], Token) and stack[-1].type in {"ENUM", "BITFIELD"}
         if e.expected == {"LPAR"} and (is_enum or (isinstance(structure, Token) and structure.type in structures)):
             diag.message = "Missing numeric value"
+            diag.code = 3
             feed(Token("LPAR", "("))
             feed(Token("NUMBER", "0"))
             feed(Token("RPAR", ")"))
@@ -204,6 +207,7 @@ class File():
         # fill in a name
         if e.expected == {"TYPE_IDENTIFIER"} and tok.type == "LBRACE":
             diag.message = "Missing name"
+            diag.code = 4
             feed(Token("TYPE_IDENTIFIER", "__unnamed__", 0, 0, 0, 0, 0, 0))
             feed(tok)
             return True
@@ -253,7 +257,7 @@ class File():
                     source = self.resolve_source(name.value)
                 except SearchError as ex:
                     return [], [Diagnostic([Location(self, name.line, name.column, len(name))],
-                        DiagLevel.ERROR, ex.msg)]
+                        DiagLevel.ERROR, 5, ex.msg)]
 
                 # load it
                 if source.name not in self.root.all_loaded:
@@ -263,7 +267,7 @@ class File():
                     self.root.all_loaded.add(source.name)
                 else:
                     self.diagnostics.append(Diagnostic([Location(self, name.line, name.column, len(name))],
-                        DiagLevel.WARN, "This file has already been included directly or by a dependency within this project\n" +\
+                        DiagLevel.WARN, 6, "This file has already been included directly or by a dependency within this project\n" +\
                         f"Note: inclusion resolved to '{source.name}'"))
 
             elif thing.data == "setting":
@@ -271,7 +275,8 @@ class File():
                 value = thing.children[1]
                 log.verbose(f"Encountered setting:{Fore.LIGHTBLACK_EX} name={Fore.WHITE}{name}{Fore.LIGHTBLACK_EX} value={Fore.WHITE}{value}", "parser")
                 if name.value not in KNOWN_SETTINGS:
-                    self.diagnostics.append(Diagnostic([Location(self, name.line, name.column, len(name))], DiagLevel.WARN, "Unknown setting"))
+                    self.diagnostics.append(Diagnostic([Location(self, name.line, name.column, len(name))],
+                        DiagLevel.WARN, 7, "Unknown setting"))
                 self.settings[name.value] = value.value
 
             else:

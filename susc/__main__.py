@@ -7,6 +7,7 @@ from . import File
 from . import exceptions
 from . import log
 from . import lang_server
+from .explain import explain
 
 def highlight(file):
     for line in file.readlines():
@@ -22,12 +23,17 @@ def main():
     parser.add_argument("-e", "--single-line-errors", help="output errors in a parsable format", action="store_true")
     parser.add_argument("-s", "--language-server", help="run as a language server", action="store_true")
     parser.add_argument("-i", "--ls-stdio", help="run LS in stdio mode", action="store_true")
+    parser.add_argument("-x", "--explain", help="explain an error code")
     args = parser.parse_args()
 
     exceptions.SINGLE_LINE_ERRORS = args.single_line_errors
     log.VERBOSE = args.verbose
     if log.VERBOSE:
         log.verbose("Verbose mode enabled")
+
+    if args.explain:
+        explain(int(args.explain))
+        return
 
     if args.language_server:
         lang_server.start(args.ls_stdio)

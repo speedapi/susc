@@ -5,7 +5,7 @@ import re, lark
 VERBOSE = False
 ALL_STDERR = False
 SUS_COLORS = {
-    "(\".*\")|('.*')": Fore.LIGHTGREEN_EX,
+    # "(\".*\")|('.*')": Fore.LIGHTGREEN_EX,
     "/.+/[ims]{0,3}": Fore.LIGHTCYAN_EX,
     "#.*$": Fore.LIGHTBLACK_EX,
     "\\b([0-9]+|false|true|([0-9]+(y|mo|d|h|m|s|ms)))\\b": Fore.LIGHTYELLOW_EX,
