@@ -84,14 +84,12 @@ def completions(params: CompletionParams):
 
     # go to the first alpha char to the right
     line = file.source.split("\n")[params.position.line]
-    cutoff = params.position.character
-    if line[cutoff].isalpha():
-        cutoff -= 1
+    cutoff = params.position.character - 1
     while cutoff > 0 and line[cutoff].isalpha():
         cutoff -= 1
 
     # get parser state
-    expected, stack = file.insight(params.position.line, cutoff)
+    expected, stack = file.insight(params.position.line, cutoff + 1)
     if not expected or not stack:
         return None
 
