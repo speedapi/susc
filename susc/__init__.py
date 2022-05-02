@@ -189,10 +189,10 @@ class File():
                 return True
 
         # fill in missing numeric values
-        stack = parser.parser_state.value_stack
-        structure = ([None, None] + stack)[-2]
+        stack = [None, None] + parser.parser_state.value_stack
+        structure = stack[-2]
         structures = {"ENTITY", "GLOBALMETHOD", "METHOD", "STATICMETHOD", "CONFIRMATION"}
-        is_enum = isinstance(stack[-1], Token) and stack[-1].type == "ENUM"
+        is_enum = isinstance(stack[-1], Token) and stack[-1].type in {"ENUM", "BITFIELD"}
         if e.expected == {"LPAR"} and (is_enum or (isinstance(structure, Token) and structure.type in structures)):
             diag.message = "Missing numeric value"
             feed(Token("LPAR", "("))
@@ -262,9 +262,9 @@ class File():
                     self.dependencies.append(dependency)
                     self.root.all_loaded.add(source.name)
                 else:
-                    return [], [Diagnostic([Location(self, name.line, name.column, len(name))],
-                        DiagLevel.ERROR, "This file has already been included directly or by a dependency within this project\n" +\
-                        f"Note: inclusion resolved to '{source.name}'")]
+                    self.diagnostics.append(Diagnostic([Location(self, name.line, name.column, len(name))],
+                        DiagLevel.WARN, "This file has already been included directly or by a dependency within this project\n" +\
+                        f"Note: inclusion resolved to '{source.name}'"))
 
             elif thing.data == "setting":
                 name = thing.children[0]

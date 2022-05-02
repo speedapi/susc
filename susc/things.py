@@ -313,13 +313,13 @@ def convert_ast(ast, file):
         fields, methods = [], []
         for directive in directives:
             if directive.data == "entity_field":
-                doc = convert_docstring(directive.children[0])
+                f_doc = convert_docstring(directive.children[0])
                 identifier = directive.children[1]
                 opt = convert_opt(directive.children[2])
                 type_ = convert_type(directive.children[3], file)
                 location = Location(file, identifier.line, identifier.column, len(identifier.value))
 
-                fields.append(SusField(location, doc, identifier.value, type_, opt))
+                fields.append(SusField(location, f_doc, identifier.value, type_, opt))
 
             if directive.data.endswith("method"):
                 methods.append(convert_method(directive, file))
@@ -351,13 +351,13 @@ def convert_ast(ast, file):
         fields, methods = [], []
         for directive in directives:
             if not directive: continue
-            doc = convert_docstring(directive.children[0])
+            d_doc = convert_docstring(directive.children[0])
             identifier = directive.children[1]
             opt = convert_opt(directive.children[2])
             type_ = convert_type(directive.children[3], file)
             location = Location(file, identifier.line, identifier.column, len(identifier.value))
 
-            fields.append(SusField(location, doc, identifier.value, type_, opt))
+            fields.append(SusField(location, d_doc, identifier.value, type_, opt))
 
         return SusCompound(Location(file, name.line, name.column, len(name.value)), doc,
             name.value, fields)

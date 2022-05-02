@@ -3,12 +3,13 @@ from os import path
 from lark import Tree, Token
 from pygls.server import LanguageServer
 from pygls.lsp.methods import (COMPLETION, TEXT_DOCUMENT_DID_CHANGE, TEXT_DOCUMENT_DID_OPEN,
-                               TEXT_DOCUMENT_DID_CLOSE, HOVER)
+                               TEXT_DOCUMENT_DID_CLOSE, HOVER, DEFINITION)
 from pygls.lsp.types import (DidChangeTextDocumentParams, Diagnostic, Range,
                              Position, DiagnosticSeverity, CompletionOptions, CompletionParams,
                              CompletionList, CompletionItem, CompletionItemKind, HoverParams,
                              Hover, MarkedString, VersionedTextDocumentIdentifier,
-                             DidOpenTextDocumentParams, DidCloseTextDocumentParams)
+                             DidOpenTextDocumentParams, DidCloseTextDocumentParams, DefinitionParams,
+                             TextDocumentPositionParams, Location)
 
 from .things import (SusBitfield, SusCompound, SusConfirmation, SusEntity, SusEnum, SusThing, SusField, SusType,
                     SusValidator, SusMethod)
@@ -123,11 +124,16 @@ def completions(params: CompletionParams):
     log.verbose(f"Finding {finding}", "ls")
     items = []
 
-    # types: built-ins, entities, compounds
+    # types: built-ins, entities, compounds, enums, bitfields
     if finding == "types":
         for thing in file.things:
-            if isinstance(thing, (SusEntity, SusCompound)):
-                kind = CompletionItemKind.Class if isinstance(thing, SusEntity) else CompletionItemKind.Struct
+            kind = {
+                SusEntity: CompletionItemKind.Class,
+                SusCompound: CompletionItemKind.Struct,
+                SusEnum: CompletionItemKind.Enum,
+                SusBitfield: CompletionItemKind.Enum
+            }.get(type(thing), None)
+            if kind:
                 items.append(CompletionItem(label=thing.name, kind=kind))
         # built-in types
         items += [
@@ -152,11 +158,13 @@ def completions(params: CompletionParams):
     # paths: files that can be included
     if finding == "paths":
         # find .sus files near this one
+        basenames = set()
         for directory in file.search_paths():
-            items += [
-                CompletionItem(label=path.basename(n), kind=CompletionItemKind.File)
-                for n in iglob(path.join(directory, "*.sus"))
-            ]
+            basenames.update(path.basename(n) for n in iglob(path.join(directory, "*.sus")))
+        items += [
+            CompletionItem(label=path.basename(n), kind=CompletionItemKind.File)
+            for n in basenames
+        ]
 
     # errors: members of ErrorCode if it's defined
     error_enums = [t for t in file.things if isinstance(t, SusEnum) and t.name == "ErrorCode"]
@@ -190,8 +198,8 @@ def display_t_val(v: SusValidator):
 
 def display_type(t: SusType):
     return f"{t.name}" +\
-        ("(" + ', '.join(display_t_arg(a) for a in t.args) + ")") if len(t.args) else "" +\
-        ("[" + ', '.join(display_t_val(v) for v in t.validators) + "]") if len(t.validators) else ""
+        (("(" + ', '.join(display_t_arg(a) for a in t.args) + ")") if len(t.args) else "") +\
+        (("[" + ', '.join(display_t_val(v) for v in t.validators) + "]") if len(t.validators) else "")
 
 def display_field(field: SusField):
     opt = f"opt({field.optional}) " if field.optional != None else ""
@@ -224,9 +232,9 @@ def display_thing(thing: SusThing):
             "".join(f"\t{display_field(f)};\n" for f in thing.fields) +\
             "}"
 
-@server.feature(HOVER)
-def hover(params: HoverParams):
-    global files
+# finds the thing (that can be used as a type) from a token at that position
+def find_thing(params: TextDocumentPositionParams) -> tuple[str, SusThing]:
+    global foles
     file = files[params.text_document.uri]
 
     # list of things that can be used as types
@@ -244,31 +252,49 @@ def hover(params: HoverParams):
     end = start
     while end < len(line) and line[end].isalpha():
         end += 1
-    # find token that is being hovered over
-    token = line[start:end]
 
-    # find the thing that is being hovered over
+    # find token
+    token = line[start:end]
     for thing in things:
-        if thing.location.file != file:
-            continue
-        if isinstance(thing, (SusEntity, SusEnum, SusBitfield, SusCompound)):
-            if thing.name == token:
-                contents = [MarkedString(
-                    language="sus",
-                    value=display_thing(thing)
-                )]
-                if thing.docstring:
-                    contents.append(MarkedString(
-                        language="markdown",
-                        value=thing.docstring
-                    ))
-                return Hover(contents=contents)
+        if thing.name == token:
+            return token, thing
+    return token, None
+
+@server.feature(HOVER)
+def hover(params: HoverParams):
+    # find the thing that is being hovered over
+    token, thing = find_thing(params)
+    log.verbose(f"Hovering: '{token}'", "ls")
+    if thing:
+        contents = [MarkedString(
+            language="sus",
+            value=display_thing(thing)
+        )]
+        if thing.docstring:
+            contents.append(thing.docstring)
+        return Hover(contents=contents)
         
     if token in ("Str", "Int", "List", "Bool"):
         return Hover(contents=[MarkedString(
             language="sus",
             value = f"(built-in) {token}"
         )])
+
+@server.feature(DEFINITION)
+def definition(params: DefinitionParams):
+    # find the thing that is being hovered over
+    token, thing = find_thing(params)
+    log.verbose(f"Go to def: '{token}'", "ls")
+    if thing:
+        location = thing.location
+        uri = "file://" + location.file.path
+        return Location(
+            uri=uri,
+            range=Range(
+                start=Position(line=location.line - 1, character=location.col - 1),
+                end=Position(line=location.line - 1, character=location.col - 1 + location.dur)
+            ),
+        )
 
 def start(io: bool):
     if io:

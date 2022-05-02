@@ -51,7 +51,7 @@ def combine(things: List[SusThing]) -> Tuple[list[SusThing], list[Diagnostic]]:
             # diagnose redefinitions
             fine = True
             for thing2 in with_matching_name:
-                if not isinstance(thing1, (SusEnum, SusBitfield)):
+                if type(thing1) != type(thing2) or not isinstance(thing1, (SusEnum, SusBitfield)):
                     diag.append(Diagnostic([t.location for t in with_matching_name], DiagLevel.ERROR,
                         f"Redefinition of '{thing1.name}' (only enums and bitfields can be combined)"))
                     fine = False
