@@ -113,14 +113,21 @@ class File():
 
         # try parsing
         try:
-            lark_parser.parse(source)
+            lark_parser.parse(source, on_error=self.__parsing_error)
         except UnexpectedInput as e:
             return e.expected, e.state.value_stack
 
         return None, None # no expected tokens here
 
+    # this method tries to deal with parsing errors
+    # it's a complete mess since it's really hard to guess what the user
+    # really meant when parsing fails
     def __parsing_error(self, e: lark.UnexpectedToken):
         log.verbose(f"Parsing error: {e}", "corrector")
+
+        # for insight()
+        if e.token.type == "$END":
+            return False
 
         parser = e.interactive_parser
         tok: Token = e.token
@@ -129,6 +136,7 @@ class File():
         error_text = f"Expected{' one of:' if len(e.expected) > 1 else ''} {expected}"
         dur = len(token)
 
+        # prints and then feeds
         def feed(t: Token):
             log.verbose(f"Feeding {log.highlight_ast(t)}", "corrector")
             parser.feed_token(t)
@@ -171,8 +179,10 @@ class File():
         }
         for k, v in fill_in.items():
             if k in e.expected:
-                feed(Token(k, v))
+                if k == "COLON" and tok.type in {"RBRACE"}:
+                    continue
 
+                feed(Token(k, v))
                 # insert an additional semicolon if the next token is not it
                 if k in {"RPAR", "RSQB"} and tok.type != "SEMICOLON":
                     feed(Token("SEMICOLON", ";"))
@@ -193,17 +203,26 @@ class File():
             feed(tok)
             return True
 
-        # unwind last tokens if met a }
-        if tok.type == "RBRACE":
+        # fill in a name
+        if e.expected == {"ROOT_IDENTIFIER"} and tok.type == "LBRACE":
+            diag.message = "Missing name"
+            feed(Token("ROOT_IDENTIFIER", "__unnamed__", 0, 0, 0, 0, 0, 0))
+            feed(tok)
+            return True
+
+        # unwind last tokens if met a } or a ;
+        if tok.type in {"RBRACE", "SEMICOLON"}:
             log.verbose("Unwinding tokens", "corrector")
-            while isinstance(parser.parser_state.value_stack[-1], Token):
-                unwound = parser.parser_state.value_stack[-1]
+            stack = parser.parser_state.value_stack
+            # unwind until we meet a tree or a {
+            while isinstance(stack[-1], Token) and stack[-1].type != "LBRACE":
+                unwound = stack[-1]
                 log.verbose(f"Unwinding {log.highlight_ast(unwound)}", "corrector")
                 parser.parser_state.value_stack.pop()
                 parser.parser_state.state_stack.pop()
 
-            # insert original
-            feed(tok)
+            # insert }
+            feed(Token("RBRACE", "}"))
             return True
 
         return False
@@ -219,9 +238,9 @@ class File():
             log.verbose(f"AST constructed", "parser")
         except UnexpectedInput as e:
             log.verbose("LALR is not happy!", "corr_fail")
-            stack = "\n".join("-> " + log.highlight_ast(a) for a in e.state.value_stack)
+            stack = "\n".join(f"{i}: {log.highlight_ast(a)}" for i, a in enumerate(e.state.value_stack))
             log.verbose(f"Parser stack:\n{stack}", "corr_fail")
-            log.verbose(f"Incoming token: {log.highlight_ast(e.token)}'", "corr_fail")
+            log.verbose(f"Incoming token: {log.highlight_ast(e.token)}", "corr_fail")
             log.verbose(f"Expected: {', '.join(e.expected)}", "corr_fail")
             # parsing can't continue any further, just return
             return [], self.diagnostics

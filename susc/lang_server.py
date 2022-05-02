@@ -1,32 +1,33 @@
 from glob import iglob
 from os import path
+from lark import Tree, Token
 from pygls.server import LanguageServer
-from pygls.lsp.methods import COMPLETION, TEXT_DOCUMENT_DID_CHANGE, HOVER
+from pygls.lsp.methods import (COMPLETION, TEXT_DOCUMENT_DID_CHANGE, TEXT_DOCUMENT_DID_OPEN,
+                               TEXT_DOCUMENT_DID_CLOSE, HOVER)
 from pygls.lsp.types import (DidChangeTextDocumentParams, Diagnostic, Range,
                              Position, DiagnosticSeverity, CompletionOptions, CompletionParams,
                              CompletionList, CompletionItem, CompletionItemKind, HoverParams,
-                             Hover, MarkedString)
+                             Hover, MarkedString, VersionedTextDocumentIdentifier,
+                             DidOpenTextDocumentParams, DidCloseTextDocumentParams)
 
-from .things import SusBitfield, SusCompound, SusEntity, SusEnum, SusThing, SusField, SusType, SusValidator, SusMethod
+from .things import (SusBitfield, SusCompound, SusConfirmation, SusEntity, SusEnum, SusThing, SusField, SusType,
+                    SusValidator, SusMethod)
 from . import log
 from . import File, KNOWN_SETTINGS
 
 server = LanguageServer()
 files: dict[str, File] = {}
 
-@server.feature(TEXT_DOCUMENT_DID_CHANGE)
-def did_change(ls: LanguageServer, params: DidChangeTextDocumentParams):
-    path = params.text_document.uri[len("file://"):]
+def recompile_file(ls: LanguageServer, doc: VersionedTextDocumentIdentifier):
+    path = doc.uri[len("file://"):]
 
     global files
-    ls.show_message_log("Parsing project")
-    source = ls.workspace.get_document(params.text_document.uri).source
+    source = ls.workspace.get_document(doc.uri).source
 
     file = File()
-    files[params.text_document.uri] = file
+    files[doc.uri] = file
 
-    file.load_from_text(source)
-    file.path = path
+    file.load_from_text(source, path)
     _, diagnostics = file.parse()
     diag_list = []
 
@@ -46,20 +47,63 @@ def did_change(ls: LanguageServer, params: DidChangeTextDocumentParams):
                 severity=DiagnosticSeverity(diag.level.value)
             ))
         
-    log.verbose("Pushing diagnostics")
-    ls.publish_diagnostics(params.text_document.uri, diag_list)
+    log.verbose("Pushing diagnostics", "ls")
+    ls.publish_diagnostics(doc.uri, diag_list)
 
-    ls.show_message_log("Parsing done")
+@server.feature(TEXT_DOCUMENT_DID_CHANGE)
+def did_change(ls: LanguageServer, params: DidChangeTextDocumentParams):
+    log.verbose("File did change", "ls")
+    recompile_file(ls, params.text_document)
 
-@server.feature(COMPLETION, CompletionOptions(trigger_characters=[":", "(", "[", ","]))
+@server.feature(TEXT_DOCUMENT_DID_OPEN)
+def did_open(ls: LanguageServer, params: DidOpenTextDocumentParams):
+    log.verbose("File did open", "ls")
+    recompile_file(ls, params.text_document)
+
+@server.feature(TEXT_DOCUMENT_DID_CLOSE)
+def did_open(ls: LanguageServer, params: DidCloseTextDocumentParams):
+    global files
+    log.verbose("File did close", "ls")
+    files.pop(params.text_document.text_document)
+
+# searches for `token` in `state` from right to left, stopping if one of `stop` gets hit
+def unwind_state(state: list[Tree|Token], token: str, stop: list[str]=[]) -> bool:
+    if not len(state): return False
+    tok = len(state) - 1
+    while tok:
+        t = state[tok]
+        if isinstance(t, Token) and t.type not in stop and t.type == token:
+            return True
+        tok -= 1
+    return False
+
+@server.feature(COMPLETION, CompletionOptions(trigger_characters=[":", "(", "[", ",", " ", "{"]))
 def completions(params: CompletionParams):
     global files
     file = files[params.text_document.uri]
 
-    # what should we be finding?
-    expected, state = file.insight(params.position.line, params.position.character)
-    log.verbose(f"Parser expected {expected}")
-    log.verbose(f"Parser state {state}")
+    # go to the first alpha char to the right
+    line = file.source.split("\n")[params.position.line]
+    cutoff = params.position.character
+    if line[cutoff].isalpha():
+        cutoff -= 1
+    while cutoff > 0 and line[cutoff].isalpha():
+        cutoff -= 1
+
+    # get parser state
+    expected, stack = file.insight(params.position.line, cutoff)
+    if not expected or not stack:
+        return None
+
+    log.verbose(f"Parser expected: {', '.join(expected)}", "ls")
+    pretty_stack = "\n".join(f"{i}: {log.highlight_ast(s)}" for i, s in enumerate(stack))
+    log.verbose(f"Parser stack:\n{pretty_stack}", "ls")
+
+    # find the first token in the chain
+    first_token = 0
+    while isinstance(stack[first_token], Tree):
+        first_token += 1
+    first_token = stack[first_token]
 
     if "TYPE_IDENTIFIER" in expected:
         finding = "types"
@@ -69,34 +113,45 @@ def completions(params: CompletionParams):
         finding = "paths"
     elif "PARAMETER" in expected:
         finding = "parameters"
+    elif "FIELD_IDENTIFIER" in expected and unwind_state(stack, "ERRORS", ["CONFIRMATIONS"]):
+        finding = "errors"
+    elif "ROOT_IDENTIFIER" in expected and unwind_state(stack, "CONFIRMATIONS", ["ERRORS"]):
+        finding = "confirmations"
     else:
+        log.verbose("I don't know what to find :(", "ls")
         return None
 
     # find precisely that
-    log.verbose(f"Finding {finding}")
+    log.verbose(f"Finding {finding}", "ls")
     items = []
 
+    # types: built-ins, entities, compounds
     if finding == "types":
         for thing in file.things:
             if isinstance(thing, (SusEntity, SusCompound)):
-                items.append(CompletionItem(label=thing.name, kind=CompletionItemKind.Class))
+                kind = CompletionItemKind.Class if isinstance(thing, SusEntity) else CompletionItemKind.Struct
+                items.append(CompletionItem(label=thing.name, kind=kind))
+        # built-in types
         items += [
             CompletionItem(label=n, kind=CompletionItemKind.TypeParameter)
             for n in ("Str", "Int", "List", "Bool")
         ]
 
+    # validators: all validators for all types
     if finding == "validators":
         items += [
             CompletionItem(label=n, kind=CompletionItemKind.Property)
-            for n in ["val", "len", "match"]
+            for n in ("val", "len", "match", "cnt")
         ]
 
+    # parameters: setting titles
     if finding == "parameters":
         items += [
             CompletionItem(label=n, kind=CompletionItemKind.Property)
             for n in KNOWN_SETTINGS
         ]
 
+    # paths: files that can be included
     if finding == "paths":
         # find .sus files near this one
         for directory in file.search_paths():
@@ -105,7 +160,23 @@ def completions(params: CompletionParams):
                 for n in iglob(path.join(directory, "*.sus"))
             ]
 
-    log.verbose("Sending completions")
+    # errors: members of ErrorCode if it's defined
+    error_enums = [t for t in file.things if isinstance(t, SusEnum) and t.name == "ErrorCode"]
+    if finding == "errors" and len(error_enums):
+        enum = error_enums[0]
+        items += [
+            CompletionItem(label=path.basename(m.name), kind=CompletionItemKind.EnumMember)
+            for m in enum.members
+        ]
+
+    # confirmations: all confirmations
+    if finding == "confirmations":
+        items += [
+            CompletionItem(label=path.basename(c.name), kind=CompletionItemKind.Constructor)
+            for c in file.things if isinstance(c, SusConfirmation)
+        ]
+
+    log.verbose("Sending completions", "ls")
     return CompletionList(
         is_incomplete=False,
         items=items

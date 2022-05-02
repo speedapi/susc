@@ -277,6 +277,7 @@ def convert_method(ast, file):
         elif directive.data in ["errors", "confirmations"]:
             lst = {"errors": errors, "confirmations": confirmations}[directive.data]
             for e in directive.children:
+                if not e: continue
                 if e.value in lst:
                     SourceError([Location(file, e.line, e.column, len(e.value))],
                         f"Duplicate member \"{e.value}\" for this directive").print_warn()
