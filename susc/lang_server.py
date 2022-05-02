@@ -61,10 +61,10 @@ def did_open(ls: LanguageServer, params: DidOpenTextDocumentParams):
     recompile_file(ls, params.text_document)
 
 @server.feature(TEXT_DOCUMENT_DID_CLOSE)
-def did_open(ls: LanguageServer, params: DidCloseTextDocumentParams):
+def did_close(ls: LanguageServer, params: DidCloseTextDocumentParams):
     global files
     log.verbose("File did close", "ls")
-    files.pop(params.text_document.text_document)
+    files.pop(params.text_document.uri)
 
 # searches for `token` in `state` from right to left, stopping if one of `stop` gets hit
 def unwind_state(state: list[Tree|Token], token: str, stop: list[str]=[]) -> bool:
