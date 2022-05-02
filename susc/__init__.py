@@ -5,7 +5,7 @@ import lark
 from lark.exceptions import UnexpectedInput
 from os import path, makedirs
 from importlib import import_module
-from math import ceil
+from re import fullmatch
 
 from .things import *
 from . import log
@@ -29,7 +29,7 @@ def token_to_str(token: str):
         "COMMA": "','",
         "PLUS": "'+'",
 
-        "TYPE_IDENTIFIER": "name",
+        "TYPE_IDENTIFIER": "type",
         "ROOT_IDENTIFIER": "name",
         "METHOD_IDENTIFIER": "name",
         "FIELD_IDENTIFIER": "field",
@@ -54,9 +54,9 @@ class File():
         if self.parent is None:
             self.all_loaded = set()
 
-    def load_from_text(self, source, path=None):
+    def load_from_text(self, source, file_path=None):
         self.source = source
-        self.path = path.abspath(path) or "<from source>"
+        self.path = path.abspath(file_path) if file_path else "<from source>"
 
         if self.parent is None:
             self.all_loaded.add(self.path)
@@ -129,6 +129,10 @@ class File():
         error_text = f"Expected{' one of:' if len(e.expected) > 1 else ''} {expected}"
         dur = len(token)
 
+        def feed(t: Token):
+            log.verbose(f"Feeding {log.highlight_ast(t)}", "corrector")
+            parser.feed_token(t)
+
         if token == "":
             # empty token = EOF
             line = self.source.split('\n')[e.line - 1]
@@ -142,20 +146,21 @@ class File():
         # inform the user about our naming conventions :)
         # while trying to rename
         inter = e.expected.intersection({"TYPE_IDENTIFIER", "ROOT_IDENTIFIER"})
-        if len(inter):
+        if len(inter) and fullmatch(r"[a-zA-Z_]+", token):
             diag.message = "This identifier should use PascalCase"
             tok.type = inter.pop()
             tok.value = tok.value[0].upper() + tok.value[1:]
             log.verbose(f"Renamed '{token}' to '{tok.value}'", "corrector")
-            parser.feed_token(tok)
+            feed(tok)
             return True
 
         inter = e.expected.intersection({"FIELD_IDENTIFIER", "METHOD_IDENTIFIER", "VALIDATOR_IDENTIFIER"})
-        if len(inter):
+        if len(inter) and fullmatch(r"[a-zA-Z_]+", token):
             diag.message = "This identifier should use snake_case"
             tok.type = inter.pop()
             tok.value = tok.value.lower()
-            parser.feed_token(tok)
+            log.verbose(f"Renamed '{token}' to '{tok.value}'", "corrector")
+            feed(tok)
             return True
 
         # fill in missing semicolons and things
@@ -166,19 +171,15 @@ class File():
         }
         for k, v in fill_in.items():
             if k in e.expected:
-                log.verbose(f"Inserted {k}", "corrector")
-                parser.feed_token(Token(k, v))
+                feed(Token(k, v))
 
                 # insert an additional semicolon if the next token is not it
                 if k in {"RPAR", "RSQB"} and tok.type != "SEMICOLON":
-                    parser.feed_token(Token("SEMICOLON", ";"))
-                    log.verbose(f"Inserted SEMICOLON", "corrector")
+                    feed(Token("SEMICOLON", ";"))
 
                 if tok.type == "ROOT_IDENTIFIER":
                     tok.type = "TYPE_IDENTIFIER"
-                log.verbose(f"Inserted original token", "corrector")
-                print(parser.parser_state.value_stack, tok.type, tok.value)
-                parser.feed_token(tok)
+                feed(tok)
 
                 return True
 
@@ -186,11 +187,23 @@ class File():
         structure = ([None, None] + parser.parser_state.value_stack)[-2]
         if e.expected == {"LPAR"} and structure and structure.type in {"ENTITY", "GLOBALMETHOD", "METHOD", "STATICMETHOD", "CONFIRMATION"}:
             diag.message = "Missing numeric value"
-            log.verbose(f"Inserted '(0)'", "corrector")
-            parser.feed_token(Token("LPAR", "("))
-            parser.feed_token(Token("NUMBER", "0"))
-            parser.feed_token(Token("RPAR", ")"))
-            parser.feed_token(tok)
+            feed(Token("LPAR", "("))
+            feed(Token("NUMBER", "0"))
+            feed(Token("RPAR", ")"))
+            feed(tok)
+            return True
+
+        # unwind last tokens if met a }
+        if tok.type == "RBRACE":
+            log.verbose("Unwinding tokens", "corrector")
+            while isinstance(parser.parser_state.value_stack[-1], Token):
+                unwound = parser.parser_state.value_stack[-1]
+                log.verbose(f"Unwinding {log.highlight_ast(unwound)}", "corrector")
+                parser.parser_state.value_stack.pop()
+                parser.parser_state.state_stack.pop()
+
+            # insert original
+            feed(tok)
             return True
 
         return False
@@ -205,7 +218,11 @@ class File():
             self.tree = lark_parser.parse(self.source, on_error=self.__parsing_error)
             log.verbose(f"AST constructed", "parser")
         except UnexpectedInput as e:
-            log.verbose("No corrections or invalid correction", "corrector")
+            log.verbose("LALR is not happy!", "corr_fail")
+            stack = "\n".join("-> " + log.highlight_ast(a) for a in e.state.value_stack)
+            log.verbose(f"Parser stack:\n{stack}", "corr_fail")
+            log.verbose(f"Incoming token: {log.highlight_ast(e.token)}'", "corr_fail")
+            log.verbose(f"Expected: {', '.join(e.expected)}", "corr_fail")
             # parsing can't continue any further, just return
             return [], self.diagnostics
 
