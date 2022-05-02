@@ -22,7 +22,7 @@ def did_change(ls: LanguageServer, params: DidChangeTextDocumentParams):
     ls.show_message_log("Parsing project")
     source = ls.workspace.get_document(params.text_document.uri).source
 
-    file = files.get(params.text_document.uri, File())
+    file = File()
     files[params.text_document.uri] = file
 
     file.load_from_text(source)
