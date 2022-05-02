@@ -80,6 +80,11 @@ class SusType(SusTypeBase):
                     return "Bin[len] must be a range"
         elif self.name not in identifiers:
             return "Unknown type"
+        else:
+            if len(self.args):
+                return f"{self.name} takes no arguments"
+            if len(self.validators):
+                return f"{self.name} can't be validated"
 
 @dataclass
 class SusCompoundMember(SusThing):
