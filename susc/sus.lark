@@ -21,7 +21,6 @@ conf_request  : "request" "{" method_param* "}"
 conf_response : "response" "{" method_param* "}"
 egm_field     : FIELD_IDENTIFIER ":" type
 
-ROOT_IDENTIFIER      : /[A-Z][A-Za-z]*/
 FIELD_IDENTIFIER     : /[a-z][a-z_]*/
 METHOD_IDENTIFIER    : /[a-z][a-z_]*/
 enum_member          : [DOCSTRING] FIELD_IDENTIFIER "(" NUMBER ")"
@@ -48,7 +47,7 @@ type_validator  : VALIDATOR_IDENTIFIER ":" validator_value
 validator_value : SIGNED_NUMBER | range | REGEX
 
 
-entity            : [DOCSTRING] "entity" ROOT_IDENTIFIER "(" NUMBER ")" "{" entity_directive* "}"
+entity            : [DOCSTRING] "entity" TYPE_IDENTIFIER "(" NUMBER ")" "{" entity_directive* "}"
 ?entity_directive : static_method | normal_method | entity_field
 entity_field      : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] type ";"
 ?field_opt        : "opt" "(" NUMBER ")"
@@ -61,10 +60,10 @@ global_method     : _method{"globalmethod"}
 method_param      : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] type ";"
 returns           : "returns" "{" method_param* "}"
 errors            : "errors" "{" _sep{FIELD_IDENTIFIER, ","} "}"
-confirmations     : "confirmations" "{" _sep{ROOT_IDENTIFIER, ","} "}"
+confirmations     : "confirmations" "{" _sep{TYPE_IDENTIFIER, ","} "}"
 rate_limit        : "ratelimit" NUMBER "every" TIMEOUT ";"
 
-compound       : [DOCSTRING] "compound" ROOT_IDENTIFIER "{" compound_field* "}"
+compound       : [DOCSTRING] "compound" TYPE_IDENTIFIER "{" compound_field* "}"
 compound_field : [DOCSTRING] FIELD_IDENTIFIER ":" [field_opt] type ";"
 
 COMMENT: /#.*$/m

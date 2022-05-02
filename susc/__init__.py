@@ -30,7 +30,6 @@ def token_to_str(token: str):
         "PLUS": "'+'",
 
         "TYPE_IDENTIFIER": "type",
-        "ROOT_IDENTIFIER": "name",
         "METHOD_IDENTIFIER": "name",
         "FIELD_IDENTIFIER": "field",
         "VALIDATOR_IDENTIFIER": "validator",
@@ -153,8 +152,7 @@ class File():
 
         # inform the user about our naming conventions :)
         # while trying to rename
-        inter = e.expected.intersection({"TYPE_IDENTIFIER", "ROOT_IDENTIFIER"})
-        if len(inter) and fullmatch(r"[a-zA-Z_]+", token):
+        if "TYPE_IDENTIFIER" in e.expected and fullmatch(r"[a-zA-Z_]+", token):
             diag.message = "This identifier should use PascalCase"
             tok.type = inter.pop()
             tok.value = tok.value[0].upper() + tok.value[1:]
@@ -186,16 +184,16 @@ class File():
                 # insert an additional semicolon if the next token is not it
                 if k in {"RPAR", "RSQB"} and tok.type != "SEMICOLON":
                     feed(Token("SEMICOLON", ";"))
-
-                if tok.type == "ROOT_IDENTIFIER":
-                    tok.type = "TYPE_IDENTIFIER"
                 feed(tok)
 
                 return True
 
         # fill in missing numeric values
-        structure = ([None, None] + parser.parser_state.value_stack)[-2]
-        if e.expected == {"LPAR"} and structure and structure.type in {"ENTITY", "GLOBALMETHOD", "METHOD", "STATICMETHOD", "CONFIRMATION"}:
+        stack = parser.parser_state.value_stack
+        structure = ([None, None] + stack)[-2]
+        structures = {"ENTITY", "GLOBALMETHOD", "METHOD", "STATICMETHOD", "CONFIRMATION"}
+        is_enum = isinstance(stack[-1], Token) and stack[-1].type == "ENUM"
+        if e.expected == {"LPAR"} and (is_enum or (isinstance(structure, Token) and structure.type in structures)):
             diag.message = "Missing numeric value"
             feed(Token("LPAR", "("))
             feed(Token("NUMBER", "0"))
@@ -204,9 +202,9 @@ class File():
             return True
 
         # fill in a name
-        if e.expected == {"ROOT_IDENTIFIER"} and tok.type == "LBRACE":
+        if e.expected == {"TYPE_IDENTIFIER"} and tok.type == "LBRACE":
             diag.message = "Missing name"
-            feed(Token("ROOT_IDENTIFIER", "__unnamed__", 0, 0, 0, 0, 0, 0))
+            feed(Token("TYPE_IDENTIFIER", "__unnamed__", 0, 0, 0, 0, 0, 0))
             feed(tok)
             return True
 

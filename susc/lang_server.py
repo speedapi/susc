@@ -113,7 +113,7 @@ def completions(params: CompletionParams):
         finding = "parameters"
     elif "FIELD_IDENTIFIER" in expected and unwind_state(stack, "ERRORS", ["CONFIRMATIONS"]):
         finding = "errors"
-    elif "ROOT_IDENTIFIER" in expected and unwind_state(stack, "CONFIRMATIONS", ["ERRORS"]):
+    elif "TYPE_IDENTIFIER" in expected and unwind_state(stack, "CONFIRMATIONS", ["ERRORS"]):
         finding = "confirmations"
     else:
         log.verbose("I don't know what to find :(", "ls")
@@ -190,8 +190,8 @@ def display_t_val(v: SusValidator):
 
 def display_type(t: SusType):
     return f"{t.name}" +\
-        "(" + ','.join(display_t_arg(a) for a in t.args) + ")" +\
-        "[" + ','.join(display_t_val(v) for v in t.validators) + "]"
+        ("(" + ', '.join(display_t_arg(a) for a in t.args) + ")") if len(t.args) else "" +\
+        ("[" + ', '.join(display_t_val(v) for v in t.validators) + "]") if len(t.validators) else ""
 
 def display_field(field: SusField):
     opt = f"opt({field.optional}) " if field.optional != None else ""
@@ -199,7 +199,7 @@ def display_field(field: SusField):
 
 def display_method(method: SusMethod):
     kw = "staticmethod" if method.static else "method"
-    return f"\t{kw} {method.name}({method.value})" + "{\n" +\
+    return f"\t{kw} {method.name}({method.value})" + " {\n" +\
         "".join(f"\t\t{display_field(f)};\n" for f in method.parameters) +\
         "\t\treturns {\n" +\
         "".join(f"\t\t\t{display_field(f)};\n" for f in method.returns) +\
@@ -210,7 +210,7 @@ def display_thing(thing: SusThing):
     if isinstance(thing, (SusBitfield, SusEnum)):
         kw = "enum" if isinstance(thing, SusEnum) else "bitfield"
         return f"{kw} {thing.name} " + "{\n" +\
-            "".join(f"\t{m.name}({f.value}),\n" for m in thing.members) +\
+            "".join(f"\t{m.name}({m.value}),\n" for m in thing.members) +\
             "}"
 
     elif isinstance(thing, SusEntity):
