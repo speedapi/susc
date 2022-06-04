@@ -253,7 +253,7 @@ EXPLANATIONS = {
         stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
-        AMOGUS provides a mechanism to combine declarations of `enum`s and
+        SpeedAPI provides a mechanism to combine declarations of `enum`s and
         `bitfield`s that are split apart, even across files.
         ```
         enum(1) A {
@@ -284,7 +284,7 @@ EXPLANATIONS = {
         stage="validation",
         level=DiagLevel.ERROR,
         explanation="""
-        AMOGUS provides a mechanism to combine declarations of `enum`s and
+        SpeedAPI provides a mechanism to combine declarations of `enum`s and
         `bitfield`s that are split apart, even across files.
 
         ```
@@ -396,7 +396,7 @@ EXPLANATIONS = {
         known by the server. The server must ensure that for every given entity
         type there's exactly 0 or 1 entities with a given `id`.
 
-        AMOGUS uses `id` internally in builtin methods like `get` and in in the
+        SpeedAPI uses `id` internally in builtin methods like `get` and in in the
         wire encoding.
 
         WRONG:

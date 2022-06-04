@@ -1,7 +1,4 @@
-<p align="center"><img src="https://github.com/amogus-api/info/raw/master/logos/logo_color_on_white.png" height="128"/></p>
-
-![Sus level](https://img.shields.io/badge/sus%20level-150%25-red)
-![License](https://img.shields.io/github/license/amogus-api/susc)
+![License](https://img.shields.io/github/license/speedapi/susc)
 ![Version](https://img.shields.io/pypi/v/susc)
 ![Downloads](https://img.shields.io/pypi/dm/susc)
 ![PRs and issues](https://img.shields.io/badge/PRs%20and%20issues-welcome-brightgreen)
@@ -11,6 +8,9 @@ This repository contains the compiler and language server for the SUS descriptio
 ```
 pip3 install susc
 ```
+
+# What is SpeedAPI?
+It's a platform-agnostic API and serialization tool specifically geared towards high-throughput realtime applications. You can read more about its features [here](https://github.com/speedapi/info)
 
 # Usage
 
@@ -43,7 +43,7 @@ file = File()
 file.load_from_file("/path/to/file.sus")
 # or
 file.load_from_file(open("/path/to/file.sus"))
-# or
+# or load text:
 file.load_from_text("compound Test { a: Str; b: Str; }")
 
 things, diagnostics = file.parse()

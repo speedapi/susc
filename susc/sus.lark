@@ -1,4 +1,4 @@
-// AMOGUS SUS description language
+// SpeedAPI SUS description language
 
 _sep{x, s}: [x (s x)*]
 

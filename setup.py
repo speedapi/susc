@@ -10,10 +10,10 @@ with open("requirements.txt", "r") as f:
 setup(
     name="susc",
     version="1.5.2",
-    description="AMOGUS SUS description language compiler",
+    description="SpeedAPI schema compiler",
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/amogus-api/susc",
+    url="https://github.com/speedapi/susc",
     author="portasynthinca3",
     author_email="hi@portasynthinca3.me",
     license="BSD 3-Clause",
