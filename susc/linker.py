@@ -135,12 +135,11 @@ def validate_values(entities: List[SusEntity], method_sets: List[List[SusMethod]
         # check ID field
         id_field = [f for f in thing.fields if f.name == "id"]
         if not id_field:
-            diag.append(Diagnostic([thing.location], DiagLevel.WARN, 18, f"No 'id' field"))
+            diag.append(Diagnostic([thing.location], DiagLevel.ERROR, 18, f"No 'id' field"))
         else:
             id_field = id_field[0]
-            t = id_field.type_
-            if t.name != "Int" or len(t.args) != 1 or t.args[0] != 8:
-                diag.append(Diagnostic([id_field.location], DiagLevel.WARN, 18, f"The 'id' field is not an Int(8)"))
+            if id_field.optional != None:
+                diag.append(Diagnostic([id_field.location], DiagLevel.ERROR, 18, f"'id' field can't be optional"))
 
     for m_set in method_sets:
         for method in m_set:

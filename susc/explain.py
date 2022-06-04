@@ -241,9 +241,10 @@ EXPLANATIONS = {
             e: Str(1);
             f: Str[len: /rege*xp?/i];
             g: Str[match: 10..20];
+            h: List(Str, Int(1));
 
 
-            h: NonExistent;
+            i: NonExistent;
         }
         ```
         """
@@ -254,7 +255,6 @@ EXPLANATIONS = {
         explanation="""
         AMOGUS provides a mechanism to combine declarations of `enum`s and
         `bitfield`s that are split apart, even across files.
-
         ```
         enum(1) A {
             a(0), b(1), c(2)
@@ -265,9 +265,8 @@ EXPLANATIONS = {
         # A contains members 'a' through 'f'
         ```
         However, this mechanism only applies to `enum`s and `bitfield`s. Trying
-        to use this mechanism for other data types will result in this
-        redefinion error.
-
+        to use this mechanism for other data types will be interpreted as a
+        redefinition.
         ```
         include impostor
         entity A(0) {
@@ -335,9 +334,19 @@ EXPLANATIONS = {
         the standard library using the combination feature. Run susc --explain 12
         to see how.
 
+        This error can also occur if you've defined an entity and have not
+        defined the `ErrorCode` enum. This is because entities define `get` and
+        `update` internally with some error codes, and hence require this enum.
+
         ```
         globalmethod example(0) {
             errors { invalid_id }
+        }
+        ```
+
+        ```
+        entity Example(0) {
+            id: Int(8);
         }
         ```
         """
@@ -379,22 +388,31 @@ EXPLANATIONS = {
     ),
     18: Explanation(
         stage="validation",
-        level=DiagLevel.WARN,
+        level=DiagLevel.ERROR,
         explanation="""
-        The entity did not have an `id` field or its type was not `Int(8)`.
+        The entity did not have an `id` field or it was marked optional.
+
+        The `id` field is special: it's used to uniquely identify each entity
+        known by the server. The server must ensure that for every given entity
+        type there's exactly 0 or 1 entities with a given `id`.
+
+        AMOGUS uses `id` internally in builtin methods like `get` and in in the
+        wire encoding.
 
         WRONG:
         ```
-        include impostor.sus
         entity ExampleA(0) { }
         entity ExampleB(1) {
-            id: Str;
+            id: opt(0) Int(8);
         }
         ```
         RIGHT:
         ```
-        entity Example(0) {
+        entity ExampleA(0) {
             id: Int(8);
+        }
+        entity ExampleB(1) {
+            id: Str;
         }
         ```
         """
