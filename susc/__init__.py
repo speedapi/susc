@@ -286,20 +286,23 @@ class File():
                 thing = convert_ast(thing, self)
                 log.verbose(f"Converted AST subtree: {Fore.WHITE}{log.highlight_thing(thing)}", "parser")
                 self.things.append(thing)
+
                 # generate standard methods for entities
                 if isinstance(thing, SusEntity):
-                    thing.methods.append(SusMethod(
-                        thing.location,
-                        f"Gets {thing.name} by ID",
-                        True,
-                        "get",
-                        127,
-                        [SusField(thing.location, "ID of the entity to get", "id", SusType(thing.location, None, "Int", [8], []), None)],
-                        [SusField(thing.location, "Entity with that ID", "entity", SusType(thing.location, None, thing.name, [], []), None)],
-                        ["invalid_id"],
-                        [],
-                        None
-                    ))
+                    id_field = [f for f in thing.fields if f.name == "id"]
+                    if id_field:
+                        thing.methods.append(SusMethod(
+                            thing.location,
+                            f"Gets {thing.name} by ID",
+                            True,
+                            "get",
+                            127,
+                            [SusField(thing.location, "ID of the entity to get", "id", id_field[0].type_, None)],
+                            [SusField(thing.location, "Entity with that ID", "entity", SusType(thing.location, None, thing.name, [], []), None)],
+                            ["invalid_id"],
+                            [],
+                            None
+                        ))
                     thing.methods.append(SusMethod(
                         thing.location,
                         f"Updates {thing.name}",
