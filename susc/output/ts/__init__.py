@@ -183,6 +183,8 @@ def write_output(root_file: File, target_dir: str) -> None:
         # write entities
         entities = [t for t in root_file.things if isinstance(t, SusEntity)]
         for entity in entities:
+            id_field = [f for f in entity.fields if f.name == "id"][0]
+
             # write method specs and classes
             for method in entity.methods:
                 name = f"{entity.name}_{snake_to_pascal(method.name)}"
@@ -197,7 +199,9 @@ def write_output(root_file: File, target_dir: str) -> None:
                 write_field_array(f, method.returns, objs)
                 f.write("\t},\n")
                 conf_names = ", ".join(f"new {snake_to_pascal(conf)}()" for conf in method.confirmations)
-                f.write(f"\tconfirmations: [{conf_names}]\n")
+                f.write(f"\tconfirmations: [{conf_names}],\n")
+                if not method.static:
+                    f.write(f"\tentityIdRepr: {type_to_amogus(id_field.type_, objs)}\n")
                 f.write("};\n")
                 write_docstr(f, method)
                 f.write(f"export class {name} extends amogus.Method<typeof {name}Spec> {'{'}\n")
@@ -255,7 +259,7 @@ def write_output(root_file: File, target_dir: str) -> None:
                 f.write("\t}\n")
 
             # write $get()
-            f.write("\n\tstatic async $get(id: bigint) {\n")
+            f.write(f"\n\tstatic async $get(id: amogus.repr.TsType<typeof {entity.name}Spec[\"fields\"][\"required\"][\"id\"]>) {'{'}\n")
             f.write(f"\t\treturn (await this.get({'{'} id {'}'})).entity as amogus.ValuedEntity<{entity.name}>;\n")
             f.write("\t}\n")
 
