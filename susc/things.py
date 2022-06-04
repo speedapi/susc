@@ -79,7 +79,7 @@ class SusType(SusTypeBase):
                 if not isinstance(v.restriction, range):
                     return "Bin[len] must be a range"
         elif self.name not in identifiers:
-            return "Unknown type"
+            return f"Unknown type '{self.name}'"
         else:
             if len(self.args):
                 return f"{self.name} takes no arguments"
