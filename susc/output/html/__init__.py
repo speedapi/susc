@@ -79,11 +79,13 @@ def write_output(root_file: File, target_dir: str) -> None:
         entities = sorted([t for t in things if isinstance(t, SusEntity)], key=lambda t: t.name)
         bitfields = sorted([t for t in things if isinstance(t, SusBitfield)], key=lambda t: t.name)
         confirmations = sorted([t for t in things if isinstance(t, SusConfirmation)], key=lambda t: t.name)
+        compounds = sorted([t for t in things if isinstance(t, SusCompound)], key=lambda t: t.name)
         write_index_list(f, "Enums", "enum", enums)
         write_index_list(f, "Bitfields", "bf", bitfields)
         write_index_list(f, "Entities", "entity", entities)
         write_index_list(f, "Global methods", "gm", methods)
         write_index_list(f, "Confirmations", "conf", confirmations)
+        write_index_list(f, "Compounds", "cmp", compounds)
 
         # closing
         f.write("\t</body>\n")
@@ -96,7 +98,8 @@ def write_output(root_file: File, target_dir: str) -> None:
             SusBitfield: ("bitfield", "bf_"),
             SusEntity: ("entity", "entity_"),
             SusMethod: ("global method", "gm_"),
-            SusConfirmation: ("confirmation", "conf_")
+            SusConfirmation: ("confirmation", "conf_"),
+            SusCompound: ("compound", "cmp_"),
         }[type(thing)]
 
         file_name = prefix + thing.name.lower() + ".html"
@@ -144,12 +147,8 @@ def write_field(f, field: SusField, title: str, css_class: str):
     f.write(f"\t\t\t<h3>{title}: <code class='{css_class}'>{field.name}</code></h3>\n")
     f.write(format_docstring(field.docstring, indentation=3))
     f.write(f"\t\t\t<div class='thing-param'>Type: <code>{format_type(field.type_)}</code></div>\n")
-    if field.caching:
-        f.write(f"\t\t\t<div class='thing-param'>Caching: {field.caching}</div>\n")
     if field.optional is not None:
         f.write(f"\t\t\t<div class='thing-param'>Optional ID: {field.optional}</div>\n")
-    if field.default is not None:
-        f.write(f"\t\t\t<div class='thing-param'>Default value: <code>{field.default}</code></div>\n")
     f.write("\t\t</div>\n")
 
 def transform_cond_list(l):
@@ -165,8 +164,6 @@ def write_method(f, method: SusMethod, write_header=True):
     f.write(f"\t\t\t<{value_elm} class='thing-param'>Value: {method.value}</{value_elm}>\n")
     if method.errors:
         f.write(f"\t\t\t<{value_elm} class='thing-param'>Errors: {transform_cond_list(method.errors)}</{value_elm}>\n")
-    if method.states:
-        f.write(f"\t\t\t<{value_elm} class='thing-param'>States: {transform_cond_list(method.states)}</{value_elm}>\n")
     if method.confirmations:
         f.write(f"\t\t\t<{value_elm} class='thing-param'>Confirmations: {transform_cond_list(method.confirmations)}</{value_elm}>\n")
 
@@ -205,6 +202,11 @@ def write_thing(f, thing: SusThing):
             write_field(f, param, "request parameter", "param")
         for param in thing.resp_parameters:
             write_field(f, param, "response parameter", "ret-val")
+    
+    elif isinstance(thing, SusCompound):
+        f.write(format_docstring(thing.docstring))
+        for field in thing.fields:
+            write_field(f, field, "field", "field")
 
     elif isinstance(thing, SusMethod):
         write_method(f, thing, False)
@@ -245,6 +247,10 @@ def write_index_list(f, title, href_pref, elements):
                 (len(elm.fields), "field"),
                 (len(static), "static method"),
                 (len(normal), "dynamic method")
+            ])
+        if isinstance(elm, SusCompound):
+            info = noun_list([
+                (len(elm.fields), "field"),
             ])
         if len(info) > 0:
             info = "(" + info + ")"

@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 setup(
     name="susc",
-    version="1.4.2",
+    version="1.5.0",
     description="AMOGUS SUS description language compiler",
     long_description=README,
     long_description_content_type="text/markdown",
