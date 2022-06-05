@@ -61,10 +61,10 @@ class SusType(SusTypeBase):
             if not isinstance(self.args[1], int) or self.args[1] <= 0:
                 return "Second argument to List should be a positive integer"
             for v in self.validators:
-                if v.param != "cnt":
-                    return "The following validators are valid for List: 'cnt'"
+                if v.param != "len":
+                    return "The following validators are valid for List: 'len'"
                 if not isinstance(v.restriction, range):
-                    return "List[cnt] must be a range"
+                    return "List[len] must be a range"
         elif self.name == "Bool":
             if len(self.args) != 0:
                 return "Bool takes no arguments"

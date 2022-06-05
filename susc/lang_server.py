@@ -145,7 +145,7 @@ def completions(params: CompletionParams):
     if finding == "validators":
         items += [
             CompletionItem(label=n, kind=CompletionItemKind.Property)
-            for n in ("val", "len", "match", "cnt")
+            for n in ("val", "len", "match")
         ]
 
     # parameters: setting titles
