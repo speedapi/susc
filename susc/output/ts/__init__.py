@@ -173,7 +173,7 @@ def write_output(root_file: File, target_dir: str) -> None:
             f.write("\tthis: any | speedapi.BoundSession,\n")
             f.write(f"\tparams: speedapi.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
             f.write(f"\tconfirm?: speedapi.ConfCallback<{name}>,\n")
-            f.write("\tsession?: speedapi.Session<speedapi.SpecSpace>\n")
+            f.write("\tsession?: speedapi.Session\n")
             f.write(f"): Promise<speedapi.repr.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
             f.write(f"\tconst method = new {name}();\n")
             f.write(f"\tmethod.params = params;\n")
@@ -225,8 +225,8 @@ def write_output(root_file: File, target_dir: str) -> None:
             # write class
             write_docstr(f, entity)
             f.write(f"export class {name} extends speedapi.Entity<typeof {name}Spec> {'{'}\n")
-            f.write("\tprotected static readonly session?: speedapi.Session<speedapi.SpecSpace>;\n")
-            f.write("\treadonly dynSession?: speedapi.Session<speedapi.SpecSpace>;\n\n")
+            f.write("\tprotected static readonly session?: speedapi.Session;\n")
+            f.write("\treadonly dynSession?: speedapi.Session;\n\n")
             f.write(f"\tconstructor(value?: speedapi.repr.FieldValue<typeof {name}Spec[\"fields\"]>) {'{'}\n")
             f.write(f"\t\tsuper({name}Spec, {entity.value}, value);\n")
             f.write("\t}\n")
@@ -246,7 +246,7 @@ def write_output(root_file: File, target_dir: str) -> None:
                 f.write(f"\t{protected}{static}async {snake_to_camel(method.name)}(\n")
                 f.write(f"\t\tparams: speedapi.repr.FieldValue<typeof {name}Spec[\"params\"]>,\n")
                 f.write(f"\t\tconfirm?: speedapi.ConfCallback<{name}>,\n")
-                f.write("\t\tsession?: speedapi.Session<speedapi.SpecSpace>\n")
+                f.write("\t\tsession?: speedapi.Session\n")
                 f.write(f"\t): Promise<speedapi.repr.FieldValue<typeof {name}Spec[\"returns\"]>> {'{'}\n")
                 f.write(f"\t\tconst method = new {name}();\n")
                 f.write(f"\t\tmethod.params = params;\n")
@@ -266,7 +266,7 @@ def write_output(root_file: File, target_dir: str) -> None:
             f.write("}\n\n\n")
 
         # write spec space
-        f.write("\nexport function $specSpace(session: speedapi.Session<speedapi.SpecSpace>) {\n")
+        f.write("\nexport function $specSpace(session: speedapi.Session) {\n")
         f.write("\treturn {\n")
         f.write("\t\tspecVersion: \"2\" as const,\n")
         f.write(f"\t\tproject: \"{proj_id}\" as const,\n")
@@ -289,7 +289,7 @@ def write_output(root_file: File, target_dir: str) -> None:
         f.write("}\n\n\n")
 
         # write $bind()
-        f.write("\nexport function $bind(session: speedapi.Session<speedapi.SpecSpace>) {\n")
+        f.write("\nexport function $bind(session: speedapi.Session) {\n")
         f.write(f"\tif(session.specSpace.project !== \"{proj_id}\")\n")
         f.write("\t\tthrow new Error(\"failed to $bind: project identifier does not match\")\n\n")
         f.write("\treturn {\n")
